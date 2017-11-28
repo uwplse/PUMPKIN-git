@@ -56,7 +56,7 @@ let git_root () =
 
 (* Get the path to a file relative to the git repository's root directory. *)
 let git_path filename =
-  let path = Core.Filename.realpath filename in
+  let path = Core.Std.Filename.realpath filename in
   let root = git_root () in
   let pos = String.length root + 1 in
   let len = String.length path - String.length root - 1 in
