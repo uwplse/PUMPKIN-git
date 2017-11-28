@@ -1,0 +1,9 @@
+*.ml4.d
+*.mli.d
+*.ml.d
+*.mlpack.d
+*.cmi
+*.cmo
+*.cmx
+*.cmxs
+*.o
