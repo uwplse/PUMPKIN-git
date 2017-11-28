@@ -2,6 +2,14 @@
 
 ## Building
 
+You need the [core](https://opam.ocaml.org/packages/core/) package to build this tool.
+You can install it through opam:
+
+```
+opam install core
+```
+Once you have that, you can build the tool:
+
 ```
 cd src
 make
