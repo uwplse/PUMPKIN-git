@@ -129,6 +129,33 @@ let line_of filename identifier : int =
   let command = Printf.sprintf "sed -n -E -e \"%s\" %s" script filename in
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string
 
+(* Define the patch term without referring to the definitions *)
+let define_patch filename patch_id input : unit =
+  let output = open_out_gen [Open_append] 0o644 filename in
+  let rev_input = List.rev input in
+  let defined = Printf.sprintf "Defined %s" patch_id in
+  let defined_opt = Core.Std.List.findi rev_input (fun _ s -> s = defined) in
+  let (defined_i, _) = Core.Std.Option.value_exn defined_opt in
+  let (patch_rev, _) = Core.Std.List.split_n rev_input defined_i in
+  let patch = List.rev (List.tl (List.tl patch_rev)) in
+  (* TODO left off here: add Definition : before =, spit out to file *)
+  List.iter (output_line stdout) patch;
+  (*try
+    while true do
+      pos := !pos + 1;
+      if line = !pos
+      then
+        (List.iter (output_line output) text;
+         output_char output '\n');
+      output_line output buffer
+    done
+  with End_of_file ->
+    output_string output final_text;
+    flush output;
+    close_in input;*)
+    close_out output
+
+
 (* Perform a user command. *)
 let run revision dont_patch patch_id id filename () =
   let text = retrieve filename revision id |> slurp in
@@ -141,12 +168,8 @@ let run revision dont_patch patch_id id filename () =
     let patch_text = call_pumpkin patch_id id module_name in
     let out_filename = output_filename filename in
     splice filename out_filename line old_text patch_text;
-    let status = Unix.system ("coqc " ^ out_filename) in
-    match status with
-    | Unix.WEXITED i when i = 0 ->
-       ()
-    | _ ->
-       Printf.printf "Successfully found a patch, but could not run coqc\n"
+    let run_coq = Printf.sprintf "coqc %s" out_filename in
+    Unix.open_process_in run_coq |> slurp |> define_patch out_filename patch_id
 
 let interface =
   let open Core.Command.Spec in
