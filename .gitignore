@@ -11,3 +11,6 @@ src/gitter
 src/pumpkin-git
 tst/Test_patch.v
 tst/Test.v.tmp
+*.aux
+*.glob
+*.vo
