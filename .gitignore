@@ -7,4 +7,5 @@
 *.cmx
 *.cmxs
 *.o
+src/gitter
 tst/Test.v.tmp
