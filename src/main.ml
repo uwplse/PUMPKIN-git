@@ -93,10 +93,10 @@ let output_filename filename : string =
   prefix ^ "_patch.v"
 
 (* Insert the given text into the file's contents at the specified line. *)
-let splice filename line text final_text : unit =
+let splice input_filename output_filename line text final_text : unit =
   let pos = ref 0 in
-  let input = open_in filename in
-  let output = open_out (output_filename filename) in
+  let input = open_in input_filename in
+  let output = open_out output_filename in
   try
     while true do
       let buffer = input_line input in
@@ -118,7 +118,9 @@ let call_pumpkin patch_id id module_name =
   let import = "Require Import Patcher.Patch." in
   let old_id = Printf.sprintf "%s.%s" module_name id in
   let patch = Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id in
-  Printf.sprintf "%s\n\n%s\n\n" import patch
+  let set_printing = "Set Printing All." in
+  let print = Printf.sprintf "Print %s." patch_id in
+  Printf.sprintf "%s\n\n%s\n\n%s\n\n%s\n\n" import patch set_printing print
 
 (* Get the line at which the given Coq identifier is defined/asserted. *)
 let line_of filename identifier : int =
@@ -137,7 +139,14 @@ let run revision dont_patch patch_id id filename () =
     let module_name = "rev" ^ revision in
     let old_text = wrap_in_module text module_name in
     let patch_text = call_pumpkin patch_id id module_name in
-    splice filename line old_text patch_text
+    let out_filename = output_filename filename in
+    splice filename out_filename line old_text patch_text;
+    let status = Unix.system ("coqc " ^ out_filename) in
+    match status with
+    | Unix.WEXITED i when i = 0 ->
+       ()
+    | _ ->
+       Printf.printf "Successfully found a patch, but could not run coqc\n"
 
 let interface =
   let open Core.Command.Spec in
@@ -145,7 +154,7 @@ let interface =
   +> flag "rev" (optional_with_default "HEAD~" string)
       ~doc:"object git revision of interest (default: HEAD~)"
   +> flag "show" no_arg
-      ~doc:" print the old definition/proof instead of patching the file"
+      ~doc:" print the old definition/proof instead of patching"
   +> flag "patch" (optional_with_default "patch" string)
       ~doc:"name of the patch (default: patch)"
   +> anon ("identifier" %: string)
