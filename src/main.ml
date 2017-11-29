@@ -90,7 +90,13 @@ let rename text identifier suffix : string list =
   in
   List.map subst text
 
-(* Name the temporary output file *)
+(* Determine the patch output file text *)
+let output_text input_text identifier suffix : string list =
+  let old_text = rename input_text identifier suffix in
+  let import = Printf.sprintf "\n%s" "Require Import Patcher.Patch." in
+  List.append old_text [import]
+
+(* Name the patch output file *)
 let output_filename filename : string =
   let prefix = Core.Std.Filename.chop_suffix filename ".v" in
   prefix ^ "_patch.v"
@@ -129,7 +135,7 @@ let run revision suffix dont_patch identifier filename () =
   then List.iter (output_line stdout) text
   else
     let line = line_of filename identifier in
-    splice filename line (rename text identifier suffix)
+    splice filename line (output_text text identifier suffix)
 
 let interface =
   let open Core.Command.Spec in
