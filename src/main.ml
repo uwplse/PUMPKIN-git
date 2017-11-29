@@ -73,8 +73,7 @@ let replace pat sub str =
 
 (* Retrieve the content of a file at a particular git revision. *)
 let retrieve filename revision identifier : in_channel =
-  let escaped = replace "'" "\'" identifier in
-  let script = replace "[$]IDENTIFIER" escaped retrieve_template in
+  let script = replace "[$]IDENTIFIER" identifier retrieve_template in
   let command =
     Printf.sprintf
       "git show %s:%s | sed -n -E -e \"%s\"" (* Seems necessary to go through bash? *)
