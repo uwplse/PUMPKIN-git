@@ -154,11 +154,12 @@ let interface =
 let command =
   Core.Command.basic
     ~summary:"\
-Get a previous version of a proof or definition from the local git history.\
+Find a patch between the current version and a previous version of a
+proof or definition from the local git history.\
 "
     ~readme:(fun () -> "\
-By default, an updated version of the specified file, patched with the renamed
-proof or definition, is written to FILENAME_patch.v.\
+By default, an updated version of the specified file
+with a patch between versions is written to FILENAME_patch.v.\
 ")
     interface
     run
