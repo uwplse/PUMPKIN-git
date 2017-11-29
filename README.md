@@ -25,7 +25,7 @@ The normal workflow goes as follows:
 
 ```
 cd /some/git/repo/with/coq/code
-gitter changed_proof proofs/file.v
+pumpkin-git changed_proof proofs/file.v
 # Now "proofs/file_patch.v" contains a patch between versions of changed_proof
 ```
 
