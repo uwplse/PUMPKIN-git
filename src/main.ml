@@ -92,7 +92,7 @@ let rename text identifier suffix : string list =
 
 (* Name the temporary output file *)
 let output_filename filename : string =
-  let prefix = Core.Std.Filename.chop_suffix filename ".v" in
+  let prefix = Core.Filename.chop_suffix filename ".v" in
   prefix ^ "_patch.v"
 
 (* Insert the given text into the file's contents at the specified line. *)

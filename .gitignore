@@ -8,4 +8,4 @@
 *.cmxs
 *.o
 src/gitter
-tst/Test.v.tmp
+tst/Test_patch.v
