@@ -81,7 +81,7 @@ let retrieve filename revision identifier : in_channel =
   in
   Unix.open_process_in command
 
-(* Somewhat safely rename a Coq identifierr in the given text. *)
+(* Somewhat safely rename a Coq identifier in the given text. *)
 let rename text identifier suffix : string list =
   let subst =
     replace
@@ -90,11 +90,16 @@ let rename text identifier suffix : string list =
   in
   List.map subst text
 
+(* Name the temporary output file *)
+let output_filename filename : string =
+  let prefix = Core.Std.Filename.chop_suffix filename ".v" in
+  prefix ^ "_patch.v"
+
 (* Insert the given text into the file's contents at the specified line. *)
 let splice filename line text : unit =
   let pos = ref 0 in
   let input = open_in filename in
-  let output = open_out (filename ^ ".tmp") in
+  let output = open_out (output_filename filename) in
   try
     while true do
       let buffer = input_line input in
@@ -145,7 +150,7 @@ Get a previous version of a proof or definition from the local git history.\
 "
     ~readme:(fun () -> "\
 By default, an updated version of the specified file, patched with the renamed
-proof or definition, is written to FILENAME.tmp.\
+proof or definition, is written to FILENAME_patch.v.\
 ")
     interface
     run

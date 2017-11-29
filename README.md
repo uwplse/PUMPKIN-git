@@ -36,8 +36,8 @@ cd tst
 It should print this output:
 
 ```
-The definition has been added to Test.v.tmp.
-Difference between Test.v and Test.v.tmp:
+The definition has been added to Test_patch.v.
+Difference between Test.v and Test_patch.v:
 
 2a3,13
 > Theorem test_old:
