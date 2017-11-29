@@ -1,5 +1,5 @@
 
-/(Theorem|Lemma|Example)[ ]+$IDENTIFIER[ ]+/{
+/(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   :prf
   p
   /(Qed|Admitted)[.]/!{
@@ -9,7 +9,7 @@
   q
 }
 
-/(Definition|Let|Fixpoint|CoFixpoint)[ ]+$IDENTIFIER[ ]+/{
+/(Definition|Let|Fixpoint|CoFixpoint)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   :def
   p
   /[^.][.]([ ]*[(][*].*[*][)])*[ ]*$/!{
@@ -19,7 +19,7 @@
   q
 }
 
-/(Inductive|CoInductive)[ ]+$IDENTIFIER[ ]+/{
+/(Inductive|CoInductive)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   :ind
   p
   /[^.][.]([ ]*[(][*].*[*][)])*[ ]*$/!{
