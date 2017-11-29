@@ -1,17 +1,17 @@
 
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
-/(Theorem|Lemma|Example)[ ]+$IDENTIFIER[ ]+/{
+/(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   :prf
   p
-  /(Qed|Admitted)[.]/!{
+  /(Qed|Admitted|Defined)[.]/!{
     n
     b prf
   }
   q
 }
 
-/(Definition|Let|Fixpoint|CoFixpoint)[ ]+$IDENTIFIER[ ]+/{
+/(Definition|Let|Fixpoint|CoFixpoint)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   :def
   p
   /[^.][.]([ ]*[(][*].*[*][)])*[ ]*$/!{
@@ -21,7 +21,7 @@ let retrieve_template = "
   q
 }
 
-/(Inductive|CoInductive)[ ]+$IDENTIFIER[ ]+/{
+/(Inductive|CoInductive)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   :ind
   p
   /[^.][.]([ ]*[(][*].*[*][)])*[ ]*$/!{
@@ -33,7 +33,7 @@ let retrieve_template = "
 "
 
 let lineof_template = "
-/(Theorem|Lemma|Example|Definition|Let|Fixpoint|Inductive)[ ]+$IDENTIFIER[ ]+/{
+/(Theorem|Lemma|Example|Definition|Let|Fixpoint|Inductive)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
   =
   q
 }
@@ -86,7 +86,7 @@ let retrieve filename revision identifier : in_channel =
 let rename text identifier suffix : string list =
   let subst =
     replace
-      ("\\([^a-z]\\)" ^ identifier ^ "\\([^a-z_']\\|$\\)")
+      ("\\([^A-Za-z0-9_']\\)" ^ identifier ^ "\\([^A-Za-z0-9_']\\|$\\)")
       ("\\1" ^ identifier ^ suffix ^ "\\2")
   in
   List.map subst text
