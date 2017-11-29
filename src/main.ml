@@ -81,28 +81,19 @@ let retrieve filename revision identifier : in_channel =
   in
   Unix.open_process_in command
 
-(* Somewhat safely rename a Coq identifier in the given text. *)
-let rename text identifier suffix : string list =
-  let subst =
-    replace
-      ("\\([^A-Za-z0-9_']\\)" ^ identifier ^ "\\([^A-Za-z0-9_']\\|$\\)")
-      ("\\1" ^ identifier ^ suffix ^ "\\2")
-  in
-  List.map subst text
+(* Wrap the text in a module *)
+let wrap_in_module text name : string list =
+  let open_module = Printf.sprintf "Module %s.\n" name in
+  let close_module = Printf.sprintf "\nEnd %s." name in
+  open_module :: (List.append text [close_module])
 
-(* Determine the patch output file text *)
-let output_text input_text identifier suffix : string list =
-  let old_text = rename input_text identifier suffix in
-  let import = Printf.sprintf "\n%s" "Require Import Patcher.Patch." in
-  List.append old_text [import]
-
-(* Name the patch output file *)
+(* Name the patch output file. *)
 let output_filename filename : string =
   let prefix = Core.Std.Filename.chop_suffix filename ".v" in
   prefix ^ "_patch.v"
 
 (* Insert the given text into the file's contents at the specified line. *)
-let splice filename line text : unit =
+let splice filename line text final_text : unit =
   let pos = ref 0 in
   let input = open_in filename in
   let output = open_out (output_filename filename) in
@@ -117,9 +108,17 @@ let splice filename line text : unit =
       output_line output buffer
     done
   with End_of_file ->
+    output_string output final_text;
     flush output;
     close_in input;
     close_out output
+
+(* Append the text that calls PUMPKIN to the end of the file. *)
+let call_pumpkin patch_id id module_name =
+  let import = "Require Import Patcher.Patch." in
+  let old_id = Printf.sprintf "%s.%s" module_name id in
+  let patch = Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id in
+  Printf.sprintf "%s\n\n%s\n\n" import patch
 
 (* Get the line at which the given Coq identifier is defined/asserted. *)
 let line_of filename identifier : int =
@@ -129,23 +128,26 @@ let line_of filename identifier : int =
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string
 
 (* Perform a user command. *)
-let run revision suffix dont_patch identifier filename () =
-  let text = retrieve filename revision identifier |> slurp in
+let run revision dont_patch patch_id id filename () =
+  let text = retrieve filename revision id |> slurp in
   if dont_patch
   then List.iter (output_line stdout) text
   else
-    let line = line_of filename identifier in
-    splice filename line (output_text text identifier suffix)
+    let line = line_of filename id in
+    let module_name = "rev" ^ revision in
+    let old_text = wrap_in_module text module_name in
+    let patch_text = call_pumpkin patch_id id module_name in
+    splice filename line old_text patch_text
 
 let interface =
   let open Core.Command.Spec in
   empty
   +> flag "rev" (optional_with_default "HEAD~" string)
       ~doc:"object git revision of interest (default: HEAD~)"
-  +> flag "suf" (optional_with_default "_old" string)
-      ~doc:"string suffix to add to the older definition/proof (default: _old)"
   +> flag "show" no_arg
       ~doc:" print the old definition/proof instead of patching the file"
+  +> flag "patch" (optional_with_default "patch" string)
+      ~doc:"name of the patch (default: patch)"
   +> anon ("identifier" %: string)
   +> anon ("filename" %: file)
 
