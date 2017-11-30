@@ -1,4 +1,3 @@
-
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
 /(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -93,10 +92,10 @@ let output_filename filename : string =
   prefix ^ "_patch.v"
 
 (* Insert the given text into the file's contents at the specified line. *)
-let splice filename line text final_text : unit =
+let splice input_filename output_filename line text final_text : unit =
   let pos = ref 0 in
-  let input = open_in filename in
-  let output = open_out (output_filename filename) in
+  let input = open_in input_filename in
+  let output = open_out output_filename in
   try
     while true do
       let buffer = input_line input in
@@ -118,7 +117,9 @@ let call_pumpkin patch_id id module_name =
   let import = "Require Import Patcher.Patch." in
   let old_id = Printf.sprintf "%s.%s" module_name id in
   let patch = Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id in
-  Printf.sprintf "%s\n\n%s\n\n" import patch
+  let set_printing = "Set Printing All." in
+  let print = Printf.sprintf "Print %s." patch_id in
+  Printf.sprintf "%s\n\n%s\n\n%s\n\n%s\n\n" import patch set_printing print
 
 (* Get the line at which the given Coq identifier is defined/asserted. *)
 let line_of filename identifier : int =
@@ -127,8 +128,51 @@ let line_of filename identifier : int =
   let command = Printf.sprintf "sed -n -E -e \"%s\" %s" script filename in
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string
 
+(* Take only the pretty-printed input that doesn't correspond to type info *)
+let drop_pp_type_info pp : string list =
+  let type_def_pat = Str.regexp "[ ]+:" in
+  let not_type_line s = not (Str.string_match type_def_pat s 0) in
+  Core.List.take_while pp not_type_line
+
+(* Take only the pretty-printed output that corresponds to a definition of id *)
+let trim_pp pp id : string list =
+  let defined = Printf.sprintf "Defined %s" id in
+  let pp =
+    List.rev
+      (Core.List.take_while
+         (List.rev pp)
+         (fun s -> not (s = defined)))
+  in drop_pp_type_info pp
+
+(*
+ * Take a pretty-printed term and output a definition of that term.
+ *
+ * This might not work for all definitions. If so, we should eventually port
+ * to use the plugin infrastructure. But if this does work, then it may not
+ * be worth overengineering.
+ *)
+let pp_to_def pp : string list =
+  match pp with
+  | h :: t ->
+     let def = Printf.sprintf "Definition %s" (replace "=" ":=" h) in
+     def :: (List.append t [".\n"])
+  | _ ->
+     failwith "failed to find definition line"
+
+(* Define the patch term without referring to the changed term. *)
+let define_patch input_filename output_filename patch_id safe input : unit =
+  let patch = String.concat "\n" (pp_to_def (trim_pp input patch_id)) in
+  splice input_filename output_filename (-1) [] patch;
+  if not safe then
+    let rewrite = Printf.sprintf "mv %s %s" output_filename input_filename in
+    match Unix.system rewrite with
+    | Unix.WEXITED 0 ->
+       ()
+    | _ ->
+       failwith "Cannot overwrite file. Change permissions or run with --safe."
+
 (* Perform a user command. *)
-let run revision dont_patch patch_id id filename () =
+let run revision dont_patch safe patch_id id filename () =
   let text = retrieve filename revision id |> slurp in
   if dont_patch
   then List.iter (output_line stdout) text
@@ -137,7 +181,11 @@ let run revision dont_patch patch_id id filename () =
     let module_name = "rev" ^ revision in
     let old_text = wrap_in_module text module_name in
     let patch_text = call_pumpkin patch_id id module_name in
-    splice filename line old_text patch_text
+    let out_filename = output_filename filename in
+    splice filename out_filename line old_text patch_text;
+    let run_coq = Printf.sprintf "coqc %s" out_filename in
+    let patch = define_patch filename out_filename patch_id safe in
+    Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
@@ -145,7 +193,9 @@ let interface =
   +> flag "rev" (optional_with_default "HEAD~" string)
       ~doc:"object git revision of interest (default: HEAD~)"
   +> flag "show" no_arg
-      ~doc:" print the old definition/proof instead of patching the file"
+      ~doc:" print the old definition/proof instead of patching"
+  +> flag "safe" no_arg
+      ~doc:" in safe mode, the patched file is written to a different file"
   +> flag "patch" (optional_with_default "patch" string)
       ~doc:"name of the patch (default: patch)"
   +> anon ("identifier" %: string)
@@ -159,7 +209,7 @@ proof or definition from the local git history.\
 "
     ~readme:(fun () -> "\
 By default, an updated version of the specified file
-with a patch between versions is written to FILENAME_patch.v.\
+with a patch between versions is written to the file.\
 ")
     interface
     run
