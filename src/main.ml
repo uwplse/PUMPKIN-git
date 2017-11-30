@@ -129,8 +129,7 @@ let line_of filename identifier : int =
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string
 
 (* Define the patch term without referring to the definitions *)
-let define_patch filename patch_id input : unit =
-  let output = open_out_gen [Open_append] 0o644 filename in
+let define_patch input_filename output_filename patch_id input : unit =
   let rev_input = List.rev input in
   let defined = Printf.sprintf "Defined %s" patch_id in
   let not_defined_line s = not (s = defined) in
@@ -144,9 +143,8 @@ let define_patch filename patch_id input : unit =
   let patch_tl_rev = List.rev patch_tl in
   let last_line = Printf.sprintf "%s.\n" (List.hd patch_tl_rev) in
   let patch_tl_upd = List.rev (last_line :: List.tl patch_tl_rev) in
-  List.iter (output_line output) (def_line_def :: patch_tl_upd);
-  flush output;
-  close_out output
+  let patch_string = String.concat "\n" (def_line_def :: patch_tl_upd) in
+  splice input_filename output_filename (-1) [] patch_string
 
 
 (* Perform a user command. *)
@@ -162,7 +160,8 @@ let run revision dont_patch patch_id id filename () =
     let out_filename = output_filename filename in
     splice filename out_filename line old_text patch_text;
     let run_coq = Printf.sprintf "coqc %s" out_filename in
-    Unix.open_process_in run_coq |> slurp |> define_patch out_filename patch_id
+    let patch = define_patch filename out_filename patch_id in
+    Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
