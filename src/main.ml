@@ -1,4 +1,3 @@
-
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
 /(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -134,26 +133,20 @@ let define_patch filename patch_id input : unit =
   let output = open_out_gen [Open_append] 0o644 filename in
   let rev_input = List.rev input in
   let defined = Printf.sprintf "Defined %s" patch_id in
-  let defined_opt = Core.Std.List.findi rev_input (fun _ s -> s = defined) in
-  let (defined_i, _) = Core.Std.Option.value_exn defined_opt in
-  let (patch_rev, _) = Core.Std.List.split_n rev_input defined_i in
-  let patch = List.rev (List.tl (List.tl patch_rev)) in
-  (* TODO left off here: add Definition : before =, spit out to file *)
-  List.iter (output_line stdout) patch;
-  (*try
-    while true do
-      pos := !pos + 1;
-      if line = !pos
-      then
-        (List.iter (output_line output) text;
-         output_char output '\n');
-      output_line output buffer
-    done
-  with End_of_file ->
-    output_string output final_text;
-    flush output;
-    close_in input;*)
-    close_out output
+  let not_defined_line s = not (s = defined) in
+  let patch_rev = Core.Std.List.take_while rev_input not_defined_line in
+  let patch = List.rev patch_rev in
+  let def_line = replace "=" ":=" (List.hd patch) in
+  let def_line_def = Printf.sprintf "Definition %s" def_line in
+  let type_def_pat = Str.regexp "[ ]+:" in
+  let not_type_line s = not (Str.string_match type_def_pat s 0) in
+  let patch_tl = Core.Std.List.take_while (List.tl patch) not_type_line in
+  let patch_tl_rev = List.rev patch_tl in
+  let last_line = Printf.sprintf "%s.\n" (List.hd patch_tl_rev) in
+  let patch_tl_upd = List.rev (last_line :: List.tl patch_tl_rev) in
+  List.iter (output_line output) (def_line_def :: patch_tl_upd);
+  flush output;
+  close_out output
 
 
 (* Perform a user command. *)
