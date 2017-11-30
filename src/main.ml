@@ -128,6 +128,22 @@ let line_of filename identifier : int =
   let command = Printf.sprintf "sed -n -E -e \"%s\" %s" script filename in
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string
 
+(* Take only the pretty-printed input that doesn't correspond to type info *)
+let drop_pp_type_info pp : string list =
+  let type_def_pat = Str.regexp "[ ]+:" in
+  let not_type_line s = not (Str.string_match type_def_pat s 0) in
+  Core.Std.List.take_while pp not_type_line
+
+(* Take only the pretty-printed output that corresponds to a definition of id *)
+let trim_pp pp id : string list =
+  let defined = Printf.sprintf "Defined %s" id in
+  let pp =
+    List.rev
+      (Core.Std.List.take_while
+         (List.rev pp)
+         (fun s -> not (s = defined)))
+  in drop_pp_type_info pp
+
 (*
  * Take a pretty-printed term and output a definition of that term.
  *
@@ -138,20 +154,9 @@ let line_of filename identifier : int =
 let pp_to_def pp : string list =
   let def_line = replace "=" ":=" (List.hd pp) in
   let def_line_def = Printf.sprintf "Definition %s" def_line in
-  let type_def_pat = Str.regexp "[ ]+:" in
-  let not_type_line s = not (Str.string_match type_def_pat s 0) in
-  let pp_tl = Core.Std.List.take_while (List.tl pp) not_type_line in
-  let pp_tl_rev = List.rev pp_tl in
+  let pp_tl_rev = List.rev (List.tl pp) in
   let last_line = Printf.sprintf "%s.\n" (List.hd pp_tl_rev) in
   def_line_def :: (List.rev (last_line :: List.tl pp_tl_rev))
-
-(* Take only the pretty-printed output that corresponds to a definition of id *)
-let trim_pp pp id : string list =
-  let defined = Printf.sprintf "Defined %s" id in
-  List.rev
-    (Core.Std.List.take_while
-       (List.rev pp)
-       (fun s -> not (s = defined)))
 
 (* Define the patch term without referring to the changed term. *)
 let define_patch input_filename output_filename patch_id input : unit =
