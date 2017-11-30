@@ -129,6 +129,7 @@ let line_of filename identifier : int =
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string
 
 (* Define the patch term without referring to the definitions *)
+(* TODO clean, update script, update README *)
 let define_patch input_filename output_filename patch_id input : unit =
   let rev_input = List.rev input in
   let defined = Printf.sprintf "Defined %s" patch_id in
