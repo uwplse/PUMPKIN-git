@@ -160,12 +160,19 @@ let pp_to_def pp : string list =
      failwith "failed to find definition line"
 
 (* Define the patch term without referring to the changed term. *)
-let define_patch input_filename output_filename patch_id input : unit =
+let define_patch input_filename output_filename patch_id safe input : unit =
   let patch = String.concat "\n" (pp_to_def (trim_pp input patch_id)) in
-  splice input_filename output_filename (-1) [] patch
+  splice input_filename output_filename (-1) [] patch;
+  if not safe then
+    let rewrite = Printf.sprintf "mv %s %s" output_filename input_filename in
+    match Unix.system rewrite with
+    | Unix.WEXITED 0 ->
+       ()
+    | _ ->
+       failwith "Cannot overwrite file. Change permissions or run with --safe."
 
 (* Perform a user command. *)
-let run revision dont_patch patch_id id filename () =
+let run revision dont_patch safe patch_id id filename () =
   let text = retrieve filename revision id |> slurp in
   if dont_patch
   then List.iter (output_line stdout) text
@@ -177,7 +184,7 @@ let run revision dont_patch patch_id id filename () =
     let out_filename = output_filename filename in
     splice filename out_filename line old_text patch_text;
     let run_coq = Printf.sprintf "coqc %s" out_filename in
-    let patch = define_patch filename out_filename patch_id in
+    let patch = define_patch filename out_filename patch_id safe in
     Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
@@ -187,6 +194,8 @@ let interface =
       ~doc:"object git revision of interest (default: HEAD~)"
   +> flag "show" no_arg
       ~doc:" print the old definition/proof instead of patching"
+  +> flag "safe" no_arg
+      ~doc:" in safe mode, the patched file is written to a different file"
   +> flag "patch" (optional_with_default "patch" string)
       ~doc:"name of the patch (default: patch)"
   +> anon ("identifier" %: string)
@@ -200,7 +209,7 @@ proof or definition from the local git history.\
 "
     ~readme:(fun () -> "\
 By default, an updated version of the specified file
-with a patch between versions is written to FILENAME_patch.v.\
+with a patch between versions is written to the file.\
 ")
     interface
     run
