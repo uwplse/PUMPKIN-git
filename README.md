@@ -36,19 +36,22 @@ cd tst
 ./test.sh
 ```
 
-It should patch a proof from an old revision of this repository and open
-up Coqtop. From there, you can print the patch:
+It should patch a proof in Test.v from an old revision of this repository and
+add the patch to the file Test_patch.v. It should then print the
+patch and verify that it has the correct type. The output
+should be as follows:
 
 ```
-Print patch.
-```
-
-This should give you the following output:
-
-```
+Added patch to Test_patch.v. Patch is:
 patch =
-  fun (n m p : nat) (_ : n <= m) (_ : m <= p) (H1 : n <= p) =>
-    le_plus_trans n p 1 H1
-  : forall n m p : nat, n <= m -> m <= p -> n <= p -> n <= p + 1
+fun (n m p : nat) (_ : n <= m) (_ : m <= p) (H1 : n <= p) =>
+Plus.le_plus_trans n p 1 H1
+     : forall n m p : nat, n <= m -> m <= p -> n <= p -> n <= p + 1
+
+Argument scopes are [nat_scope nat_scope nat_scope _ _ _]
+Verified that this is the expected patch.
 ```
+
+Any other output means that there is a bug in the tool or in PUMPKIN PATCH.
+If this happens, please report an issue.
 
