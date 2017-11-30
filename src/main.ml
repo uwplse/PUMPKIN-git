@@ -152,11 +152,12 @@ let trim_pp pp id : string list =
  * be worth overengineering.
  *)
 let pp_to_def pp : string list =
-  let def_line = replace "=" ":=" (List.hd pp) in
-  let def_line_def = Printf.sprintf "Definition %s" def_line in
-  let pp_tl_rev = List.rev (List.tl pp) in
-  let last_line = Printf.sprintf "%s.\n" (List.hd pp_tl_rev) in
-  def_line_def :: (List.rev (last_line :: List.tl pp_tl_rev))
+  match pp with
+  | h :: t ->
+     let def = Printf.sprintf "Definition %s" (replace "=" ":=" h) in
+     def :: (List.append t [".\n"])
+  | _ ->
+     failwith "failed to find definition line"
 
 (* Define the patch term without referring to the changed term. *)
 let define_patch input_filename output_filename patch_id input : unit =
