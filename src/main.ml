@@ -145,7 +145,7 @@ let trim_pp pp : string =
       (Core.Std.List.take_while
          (List.tl (List.rev pp))
          (fun s -> not (Str.string_match begin_patch_pat s 0)))
-  in replace "Defined .*" "" (String.concat "\n" pp)
+  in String.concat "\n" pp
 
 (* Overwrite file in unsafe [default] mode *)
 let overwrite input_filename output_filename =
