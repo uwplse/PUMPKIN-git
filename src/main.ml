@@ -159,17 +159,38 @@ let pp_to_def pp : string list =
   | _ ->
      failwith "failed to find definition line"
 
+(* Overwrite file in unsafe [default] mode *)
+let overwrite input_filename output_filename =
+  let rewrite = Printf.sprintf "mv %s %s" output_filename input_filename in
+  match Unix.system rewrite with
+   | Unix.WEXITED 0 ->
+      ()
+   | _ ->
+      failwith "Cannot overwrite file. Check permissions."
+
+(* Prompt user to overwrite file in unsafe [default] mode *)
+let prompt_overwrite input_filename output_filename =
+  let diff = Printf.sprintf "diff %s %s" input_filename output_filename in
+  output_line stdout "pumpkin-git wants to make the following changes:\n";
+  Unix.open_process_in diff |> slurp |> List.iter (output_line stdout);
+  let rec prompt () =
+    output_line stdout (Printf.sprintf "\noverwrite %s? [y/n]" input_filename);
+    match read_line () with
+    | "y" ->
+       overwrite input_filename output_filename
+    | "n" ->
+       ()
+    | s ->
+       output_line stdout "unrecognized input";
+       prompt ()
+  in prompt ()
+
 (* Define the patch term without referring to the changed term. *)
 let define_patch input_filename output_filename patch_id safe input : unit =
   let patch = String.concat "\n" (pp_to_def (trim_pp input patch_id)) in
   splice input_filename output_filename (-1) [] patch;
   if not safe then
-    let rewrite = Printf.sprintf "mv %s %s" output_filename input_filename in
-    match Unix.system rewrite with
-    | Unix.WEXITED 0 ->
-       ()
-    | _ ->
-       failwith "Cannot overwrite file. Change permissions or run with --safe."
+    prompt_overwrite input_filename output_filename
 
 (* Perform a user command. *)
 let run revision dont_patch safe patch_id id filename () =
