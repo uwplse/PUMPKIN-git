@@ -102,6 +102,11 @@ Fixpoint bin_to_nat (n : bin) : nat :=
   | B21 n' => S ((bin_to_nat n') + (bin_to_nat n'))
 end.
 
+Definition cut :=
+  forall (a : nat),
+    S (a + S a) = S (S (a + a)) ->
+    S (a + S (a + 0)) = S (S (a + (a + 0))).
+
 Theorem bin_to_nat_pres_incr : forall n : bin,
   bin_to_nat (incr n) = 1 + bin_to_nat n.
 Proof.
@@ -121,11 +126,6 @@ Proof.
     + rewrite -> H.
       reflexivity.
 Qed.
-
-Definition cut :=
-  forall (a : nat),
-    S (a + S a) = S (S (a + a)) ->
-    S (a + S (a + 0)) = S (S (a + (a + 0))).
 
 Theorem double_convertion : forall n:nat,
   bin_to_nat (nat_to_bin n) = n.
@@ -193,11 +193,11 @@ Proof.
   intros b.
   induction b.
   - reflexivity.
-  - simpl. rewrite -> plus_0_r.
+  - simpl. apply patch_inv. rewrite -> plus_0_r.
     rewrite -> D_means_double.
     simpl. rewrite -> IHb. rewrite -> normalize_again.
     reflexivity.
-  - simpl. rewrite -> plus_0_r.
+  - simpl. apply patch_inv. rewrite -> plus_0_r.
     rewrite -> D_means_double.
     rewrite -> IHb.
     simpl.

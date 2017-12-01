@@ -70,15 +70,14 @@ let output_line ch s =
 let replace pat sub str =
   Str.global_replace (Str.regexp pat) sub str
 
-(* Retrieve the content of a file at a particular git revision. *)
+(* Retrieve just the identifier at a particular git revision. *)
 let retrieve filename revision identifier : in_channel =
   let script = replace "[$]IDENTIFIER" identifier retrieve_template in
   let command =
     Printf.sprintf
       "git show %s:%s | sed -n -E -e \"%s\"" (* Seems necessary to go through bash? *)
       revision (git_path filename) script
-  in
-  Unix.open_process_in command
+  in Unix.open_process_in command
 
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
@@ -92,7 +91,7 @@ let output_filename filename : string =
   prefix ^ "_patch.v"
 
 (* Insert the given text into the file's contents at the specified line. *)
-let splice input_filename output_filename line text final_text : unit =
+let splice input_filename output_filename line text : unit =
   let pos = ref 0 in
   let input = open_in input_filename in
   let output = open_out output_filename in
@@ -100,22 +99,23 @@ let splice input_filename output_filename line text final_text : unit =
     while true do
       let buffer = input_line input in
       pos := !pos + 1;
-      if line = !pos
-      then
+      if line = !pos then
         (List.iter (output_line output) text;
          output_char output '\n');
       output_line output buffer
     done
   with End_of_file ->
-    output_string output final_text;
+    if !pos < line then
+      (List.iter (output_line output) text;
+       output_char output '\n');
     flush output;
     close_in input;
     close_out output
 
 (* Append the text that calls PUMPKIN to the end of the file. *)
 let call_pumpkin patch_id id module_name cut =
-  let import = "Require Import Patcher.Patch." in
-  let set_printing = "Set PUMPKIN Printing." in
+  let import = "Require Import Patcher.Patch.\n" in
+  let set_printing = "Set PUMPKIN Printing.\n\n" in
   let old_id = Printf.sprintf "%s.%s" module_name id in
   let patch =
     if Core.Std.Option.is_some cut then
@@ -123,14 +123,15 @@ let call_pumpkin patch_id id module_name cut =
       Printf.sprintf "Patch Proof %s %s cut by %s as %s." old_id id app patch_id
     else
       Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id
-  in Printf.sprintf "%s\n\n%s\n\n%s\n\n" import set_printing patch
+  in [import; set_printing; patch; "\n\n"]
 
-(* Get the line at which the given Coq identifier is defined/asserted. *)
-let line_of filename identifier : int =
+(* Get the line at which the definition of the given Coq identifier ends. *)
+let line_of filename identifier text : int =
   let escaped = replace "'" "\'" identifier in
   let script = replace "[$]IDENTIFIER" escaped lineof_template in
   let command = Printf.sprintf "sed -n -E -e \"%s\" %s" script filename in
-  Unix.open_process_in command |> slurp |> List.hd |> int_of_string
+  let get_end i = i + List.length text in
+  Unix.open_process_in command |> slurp |> List.hd |> int_of_string |> get_end
 
 (* Check whether a given line marks the end of a patch *)
 let is_end_line s =
@@ -144,7 +145,7 @@ let trim_pp pp : string =
       (Core.Std.List.take_while
          (List.tl (List.rev pp))
          (fun s -> not (Str.string_match begin_patch_pat s 0)))
-  in String.concat "\n" pp
+  in replace "Defined .*" "" (String.concat "\n" pp)
 
 (* Overwrite file in unsafe [default] mode *)
 let overwrite input_filename output_filename =
@@ -173,28 +174,34 @@ let prompt_overwrite input_filename output_filename =
   in prompt ()
 
 (* Define the patch term without referring to the changed term. *)
-let define_patch input_filename output_filename safe input : unit =
+let define_patch input_filename output_filename safe line input : unit =
   let marks_end s1 _ = is_end_line s1 in
   let defs = Core.Std.List.group input ~break:marks_end in
   let patches = List.map trim_pp defs in
-  splice input_filename output_filename (-1) [] (String.concat "\n\n" patches);
+  splice input_filename output_filename line patches;
   if not safe then
     prompt_overwrite input_filename output_filename
 
 (* Perform a user command. *)
-let run revision dont_patch safe patch_id cut id filename () =
+let run revision dont_patch safe patch_id cut cl id filename () =
   let text = retrieve filename revision id |> slurp in
   if dont_patch
   then List.iter (output_line stdout) text
   else
-    let line = line_of filename id in
+    let line = line_of filename id text in
     let module_name = "rev" ^ revision in
-    let old_text = wrap_in_module text module_name in
+    let changed_defs =
+      List.flatten
+        (List.map
+           (fun cid -> retrieve filename revision cid |> slurp)
+           cl)
+    in
+    let old_text = wrap_in_module (List.append changed_defs text) module_name in
     let patch_text = call_pumpkin patch_id id module_name cut in
     let out_filename = output_filename filename in
-    splice filename out_filename line old_text patch_text;
+    splice filename out_filename line (List.append old_text patch_text);
     let run_coq = Printf.sprintf "coqc %s" out_filename in
-    let patch = define_patch filename out_filename safe in
+    let patch = define_patch filename out_filename safe line in
     Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
@@ -210,6 +217,8 @@ let interface =
       ~doc:"name of the patch (default: patch)"
   +> flag "cut" (optional string)
       ~doc:"app lemma and arguments to cut by"
+  +> flag "changed" (listed string)
+      ~doc:"def additional definitions that have changed"
   +> anon ("identifier" %: string)
   +> anon ("filename" %: file)
 
