@@ -113,10 +113,16 @@ let splice input_filename output_filename line text final_text : unit =
     close_out output
 
 (* Append the text that calls PUMPKIN to the end of the file. *)
-let call_pumpkin patch_id id module_name =
+let call_pumpkin patch_id id module_name cut =
   let import = "Require Import Patcher.Patch." in
   let old_id = Printf.sprintf "%s.%s" module_name id in
-  let patch = Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id in
+  let patch =
+    if Core.Std.Option.is_some cut then
+      let app = Core.Std.Option.value_exn cut in
+      Printf.sprintf "Patch Proof %s %s cut by %s as %s." old_id id app patch_id
+    else
+      Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id
+  in
   let set_printing = "Set Printing All." in
   let print = Printf.sprintf "Print %s." patch_id in
   Printf.sprintf "%s\n\n%s\n\n%s\n\n%s\n\n" import patch set_printing print
@@ -193,7 +199,7 @@ let define_patch input_filename output_filename patch_id safe input : unit =
     prompt_overwrite input_filename output_filename
 
 (* Perform a user command. *)
-let run revision dont_patch safe patch_id id filename () =
+let run revision dont_patch safe patch_id cut id filename () =
   let text = retrieve filename revision id |> slurp in
   if dont_patch
   then List.iter (output_line stdout) text
@@ -201,7 +207,7 @@ let run revision dont_patch safe patch_id id filename () =
     let line = line_of filename id in
     let module_name = "rev" ^ revision in
     let old_text = wrap_in_module text module_name in
-    let patch_text = call_pumpkin patch_id id module_name in
+    let patch_text = call_pumpkin patch_id id module_name cut in
     let out_filename = output_filename filename in
     splice filename out_filename line old_text patch_text;
     let run_coq = Printf.sprintf "coqc %s" out_filename in
@@ -219,6 +225,8 @@ let interface =
       ~doc:" in safe mode, the patched file is written to a different file"
   +> flag "patch" (optional_with_default "patch" string)
       ~doc:"name of the patch (default: patch)"
+  +> flag "cut" (optional string)
+      ~doc:"app lemma and arguments to cut by"
   +> anon ("identifier" %: string)
   +> anon ("filename" %: file)
 
