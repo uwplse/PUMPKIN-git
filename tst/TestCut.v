@@ -99,13 +99,13 @@ Fixpoint normalize (b:bin) : bin :=
     | B21 b' => B21 (normalize b')
   end.
 
-(* https://github.com/blindFS/Software-Foundations-Solutions/blob/master/Basics.v *)
-Fixpoint bin_to_nat (b: bin) : nat :=
-  match b with
-    | B0 => O
-    | B2 b' => 2 * (bin_to_nat b')
-    | B21 b' => 1 + 2 * (bin_to_nat b')
-  end.
+(* Talia: https://github.com/marshall-lee/software_foundations/commit/4c4c4962ad1c56ab7f97b9aedf708f4ac97e7c5a *)
+Fixpoint bin_to_nat (n : bin) : nat :=
+  match n with
+  | B0     => O
+  | B2 n'  => (bin_to_nat n') + (bin_to_nat n')
+  | B21 n' => S ((bin_to_nat n') + (bin_to_nat n'))
+end.
 
 Theorem bin_to_nat_pres_incr : forall n : bin,
   bin_to_nat (incr n) = 1 + bin_to_nat n.
@@ -117,9 +117,8 @@ Proof.
   - simpl.
     rewrite -> IHn.
     simpl.
-    assert (H : forall a :nat, S (a + S (a + 0)) = S (S (a + (a + 0)))).
+    assert (H : forall a :nat, S (a + S a) = S (S (a + a))).
     + intros a.
-      rewrite <- plus_n_O.
       rewrite -> plus_comm.
       induction a.
       * reflexivity.
@@ -127,6 +126,11 @@ Proof.
     + rewrite -> H.
       reflexivity.
 Qed.
+
+Definition cut :=
+  forall (a : nat),
+    S (a + S a) = S (S (a + a)) ->
+    S (a + S (a + 0)) = S (S (a + (a + 0))).
 
 Theorem double_convertion : forall n:nat,
   bin_to_nat (nat_to_bin n) = n.
