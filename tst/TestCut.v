@@ -1,8 +1,3 @@
-(* Case study for porting a library from one Coq definition to another *)
-(* Original problems are from Software Foundations (Inductive.v), solutions are from students *)
-(* Cleaned up for easy write-up, got rid of extraneous things, but mostly the original proofs *)
-
-Require Import Patcher.Patch.
 
 Notation "x + y" := (plus x y)
                        (at level 50, left associativity)
