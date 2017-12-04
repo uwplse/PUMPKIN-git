@@ -1,5 +1,5 @@
 (* Modes for running PUMPKIN-git *)
-type mode = Default | Show | Safe | Force
+type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
@@ -195,46 +195,66 @@ let define_patch mode input_filename output_filename hint line input : unit =
   let defs = Core.List.group input ~break:marks_end in
   let patches = List.map (pp_to_def hint) defs in
   splice input_filename output_filename line patches;
-  if not (mode = Safe) then
-    if not (mode = Force) then
-      prompt_overwrite input_filename output_filename
-    else
-      overwrite input_filename output_filename
+  match mode with
+  | Interactive ->
+     prompt_overwrite input_filename output_filename
+  | Force ->
+     overwrite input_filename output_filename
+  | _ ->
+     ()
 
 (* Determine what mode to run PUMPKIN-git in.*)
 let get_mode mode =
   match mode with
-  | Some "show" -> Show
-  | Some "safe" -> Safe
-  | Some "force" -> Force
-  | None -> Default
+  | "show" -> Show
+  | "define" -> Define
+  | "lazy" -> Lazy
+  | "call" -> Call
+  | "safe" -> Safe
+  | "interactive" -> Interactive
+  | "force" -> Force
   | _ -> failwith "unrecognized mode"
 
 (* Perform a user command. *)
 let run mode rev hint patch_id cut cl id filename () =
   let text = retrieve_text filename rev id in
   let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
+  let text_with_deps = List.append changed_defs text in
   if mode = Show then
-    List.iter (output_line stdout) (List.append changed_defs text)
+    List.iter (output_line stdout) text_with_deps
   else
     let line = line_of filename id text in
     let module_name = "rev" ^ rev in
-    let old_text = wrap_in_module (List.append changed_defs text) module_name in
-    let patch_text = call_pumpkin patch_id id module_name cut in
+    let old_text = wrap_in_module text_with_deps module_name in
     let out_filename = output_filename filename in
-    splice filename out_filename line (List.append old_text patch_text);
-    let run_coq = Printf.sprintf "coqc %s" out_filename in
-    let patch = define_patch mode filename out_filename hint line in
-    Unix.open_process_in run_coq |> slurp |> patch
+    if mode = Define then
+      splice filename out_filename line old_text
+    else
+      let patch_text = call_pumpkin patch_id id module_name cut in
+      splice filename out_filename line (List.append old_text patch_text);
+      if mode = Lazy then
+        ()
+      else
+        let run_coq = Printf.sprintf "coqc %s" out_filename in
+        let patch =
+          if mode = Call then
+            List.iter (output_line stdout)
+          else
+            define_patch mode filename out_filename hint line
+        in Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
   empty
-  +> flag "mode" (optional string)
-      ~doc: "m run in one of these modes:\n
-             \tshow: print the old definition/proof instead of patching\n
-             \tsafe: write patched file to a different file\n
-             \tforce: do not prompt to overwrite file"
+  +> flag "mode" (optional_with_default "interactive" string)
+      ~doc: "m run in one of these modes (default: interactive):\n
+             \tshow: print the old definition/proof and then exit\n
+             \tdefine: like show, but write to a temporary file\n
+             \tlazy: like define, but add a call to PUMPKIN\n
+             \tcall: like lazy, but execute the result\n
+             \tsafe: write patched file to a temporary file\n
+             \tinteractive: overwrite file with patched file\n
+             \tforce: like interactive, but skip the user prompt"
   +> flag "rev" (optional_with_default "HEAD" string)
       ~doc:"object git revision of interest (default: HEAD)"
   +> flag "hint" no_arg
