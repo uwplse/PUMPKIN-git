@@ -1,5 +1,5 @@
 (* Modes for running PUMPKIN-git *)
-type mode = Default | Show | Safe | Force
+type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
@@ -195,19 +195,24 @@ let define_patch mode input_filename output_filename hint line input : unit =
   let defs = Core.Std.List.group input ~break:marks_end in
   let patches = List.map (pp_to_def hint) defs in
   splice input_filename output_filename line patches;
-  if not (mode = Safe) then
-    if not (mode = Force) then
-      prompt_overwrite input_filename output_filename
-    else
-      overwrite input_filename output_filename
+  match mode with
+  | Interactive ->
+     prompt_overwrite input_filename output_filename
+  | Force ->
+     overwrite input_filename output_filename
+  | _ ->
+     ()
 
 (* Determine what mode to run PUMPKIN-git in.*)
 let get_mode mode =
   match mode with
-  | Some "show" -> Show
-  | Some "safe" -> Safe
-  | Some "force" -> Force
-  | None -> Default
+  | "show" -> Show
+  | "define" -> Define
+  | "lazy" -> Lazy
+  | "call" -> Call
+  | "safe" -> Safe
+  | "interactive" -> Interactive
+  | "force" -> Force
   | _ -> failwith "unrecognized mode"
 
 (* Perform a user command. *)
@@ -230,11 +235,15 @@ let run mode rev hint patch_id cut cl id filename () =
 let interface =
   let open Core.Command.Spec in
   empty
-  +> flag "mode" (optional string)
-      ~doc: "m run in one of these modes:\n
-             \tshow: print the old definition/proof instead of patching\n
-             \tsafe: write patched file to a different file\n
-             \tforce: do not prompt to overwrite file"
+  +> flag "mode" (optional_with_default "interactive" string)
+      ~doc: "m run in one of these modes (default: interactive):\n
+             \tshow: print the old definition/proof and then exit\n
+             \tdefine: like show, but write to a temporary file\n
+             \tlazy: like define, but add a call to PUMPKIN\n
+             \tcall: like lazy, but execute the result\n
+             \tsafe: write patched file to a temporary file\n
+             \tinteractive: overwrite file with patched file\n
+             \tforce: like interactive, but skip the user prompt"
   +> flag "rev" (optional_with_default "HEAD" string)
       ~doc:"object git revision of interest (default: HEAD)"
   +> flag "hint" no_arg
