@@ -207,8 +207,8 @@ let run revision dont_patch safe patch_id cut cl id filename () =
 let interface =
   let open Core.Command.Spec in
   empty
-  +> flag "rev" (optional_with_default "HEAD~" string)
-      ~doc:"object git revision of interest (default: HEAD~)"
+  +> flag "rev" (optional_with_default "HEAD" string)
+      ~doc:"object git revision of interest (default: HEAD)"
   +> flag "show" no_arg
       ~doc:" print the old definition/proof instead of patching"
   +> flag "safe" no_arg
