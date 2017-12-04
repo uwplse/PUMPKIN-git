@@ -9,6 +9,7 @@
 *.o
 src/gitter
 src/pumpkin-git
+tst/Test.v
 tst/Test_patch.v
 tst/TestCut_patch.v
 tst/TestModule_patch.v
