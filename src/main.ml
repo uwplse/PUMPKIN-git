@@ -219,18 +219,22 @@ let get_mode mode =
 let run mode rev hint patch_id cut cl id filename () =
   let text = retrieve_text filename rev id in
   let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
+  let text_with_deps = List.append changed_defs text in
   if mode = Show then
-    List.iter (output_line stdout) (List.append changed_defs text)
+    List.iter (output_line stdout) text_with_deps
   else
     let line = line_of filename id text in
     let module_name = "rev" ^ rev in
-    let old_text = wrap_in_module (List.append changed_defs text) module_name in
-    let patch_text = call_pumpkin patch_id id module_name cut in
+    let old_text = wrap_in_module text_with_deps module_name in
     let out_filename = output_filename filename in
-    splice filename out_filename line (List.append old_text patch_text);
-    let run_coq = Printf.sprintf "coqc %s" out_filename in
-    let patch = define_patch mode filename out_filename hint line in
-    Unix.open_process_in run_coq |> slurp |> patch
+    if mode = Define then
+      splice filename out_filename line old_text
+    else
+      let patch_text = call_pumpkin patch_id id module_name cut in
+      splice filename out_filename line (List.append old_text patch_text);
+      let run_coq = Printf.sprintf "coqc %s" out_filename in
+      let patch = define_patch mode filename out_filename hint line in
+      Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
