@@ -1,5 +1,5 @@
 (* Modes for running PUMPKIN-git *)
-type mode = Default | Show | Safe
+type mode = Default | Show | Safe | Force
 
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
@@ -163,7 +163,7 @@ let pp_to_def hint pp : string =
   else
     def
 
-(* Overwrite file in unsafe [default] mode *)
+(* Overwrite input_filename with output_filename *)
 let overwrite input_filename output_filename =
   let rewrite = Printf.sprintf "mv %s %s" output_filename input_filename in
   match Unix.system rewrite with
@@ -172,7 +172,7 @@ let overwrite input_filename output_filename =
    | _ ->
       failwith "Cannot overwrite file. Check permissions."
 
-(* Prompt user to overwrite file in unsafe [default] mode *)
+(* Prompt user to overwrite file *)
 let prompt_overwrite input_filename output_filename =
   let diff = Printf.sprintf "diff %s %s" input_filename output_filename in
   output_line stdout "pumpkin-git wants to make the following changes:\n";
@@ -196,13 +196,17 @@ let define_patch mode input_filename output_filename hint line input : unit =
   let patches = List.map (pp_to_def hint) defs in
   splice input_filename output_filename line patches;
   if not (mode = Safe) then
-    prompt_overwrite input_filename output_filename
+    if not (mode = Force) then
+      prompt_overwrite input_filename output_filename
+    else
+      overwrite input_filename output_filename
 
 (* Determine what mode to run PUMPKIN-git in.*)
 let get_mode mode =
   match mode with
   | Some "show" -> Show
   | Some "safe" -> Safe
+  | Some "force" -> Force
   | None -> Default
   | _ -> failwith "unrecognized mode"
 
@@ -229,13 +233,14 @@ let interface =
   +> flag "mode" (optional string)
       ~doc: "m run in one of these modes:\n
              \tshow: print the old definition/proof instead of patching\n
-             \tsafe: write patched file to a different file\n"
+             \tsafe: write patched file to a different file\n
+             \tforce: do not prompt to overwrite file"
   +> flag "rev" (optional_with_default "HEAD" string)
       ~doc:"object git revision of interest (default: HEAD)"
   +> flag "hint" no_arg
       ~doc:" add the patch to the hint database"
   +> flag "patch" (optional_with_default "patch" string)
-      ~doc:"name of the patch (default: patch)"
+      ~doc:" name of the patch (default: patch)"
   +> flag "cut" (optional string)
       ~doc:"app lemma and arguments to cut by"
   +> flag "changed" (listed string)
