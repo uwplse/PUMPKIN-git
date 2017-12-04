@@ -71,13 +71,19 @@ let replace pat sub str =
   Str.global_replace (Str.regexp pat) sub str
 
 (* Retrieve just the identifier at a particular git revision. *)
-let retrieve filename revision identifier : in_channel =
-  let script = replace "[$]IDENTIFIER" identifier retrieve_template in
+let retrieve filename rev id : in_channel =
+  let script = replace "[$]IDENTIFIER" id retrieve_template in
   let command =
     Printf.sprintf
       "git show %s:%s | sed -n -E -e \"%s\"" (* Seems necessary to go through bash? *)
-      revision (git_path filename) script
+      rev
+      (git_path filename)
+      script
   in Unix.open_process_in command
+
+(* Retrieve the identifier as a list of strings *)
+let retrieve_text filename rev id : string list =
+  retrieve filename rev id |> slurp
 
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
@@ -191,18 +197,13 @@ let define_patch input_filename output_filename safe hint line input : unit =
 
 (* Perform a user command. *)
 let run rev show safe hint patch_id cut cl id filename () =
-  let text = retrieve filename rev id |> slurp in
+  let text = retrieve_text filename rev id in
+  let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
   if show then
-    List.iter (output_line stdout) text
+    List.iter (output_line stdout) (List.append changed_defs text)
   else
     let line = line_of filename id text in
     let module_name = "rev" ^ rev in
-    let changed_defs =
-      List.flatten
-        (List.map
-           (fun cid -> retrieve filename rev cid |> slurp)
-           cl)
-    in
     let old_text = wrap_in_module (List.append changed_defs text) module_name in
     let patch_text = call_pumpkin patch_id id module_name cut in
     let out_filename = output_filename filename in
