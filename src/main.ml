@@ -1,3 +1,6 @@
+(* Modes for running PUMPKIN-git *)
+type mode = Default | Show | Safe
+
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
 /(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -187,19 +190,27 @@ let prompt_overwrite input_filename output_filename =
   in prompt ()
 
 (* Define the patch term without referring to the changed term. *)
-let define_patch input_filename output_filename safe hint line input : unit =
+let define_patch mode input_filename output_filename hint line input : unit =
   let marks_end s1 _ = is_end_line s1 in
   let defs = Core.Std.List.group input ~break:marks_end in
   let patches = List.map (pp_to_def hint) defs in
   splice input_filename output_filename line patches;
-  if not safe then
+  if not (mode = Safe) then
     prompt_overwrite input_filename output_filename
 
+(* Determine what mode to run PUMPKIN-git in.*)
+let get_mode mode =
+  match mode with
+  | Some "show" -> Show
+  | Some "safe" -> Safe
+  | None -> Default
+  | _ -> failwith "unrecognized mode"
+
 (* Perform a user command. *)
-let run rev show safe hint patch_id cut cl id filename () =
+let run mode rev hint patch_id cut cl id filename () =
   let text = retrieve_text filename rev id in
   let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
-  if show then
+  if mode = Show then
     List.iter (output_line stdout) (List.append changed_defs text)
   else
     let line = line_of filename id text in
@@ -209,18 +220,18 @@ let run rev show safe hint patch_id cut cl id filename () =
     let out_filename = output_filename filename in
     splice filename out_filename line (List.append old_text patch_text);
     let run_coq = Printf.sprintf "coqc %s" out_filename in
-    let patch = define_patch filename out_filename safe hint line in
+    let patch = define_patch mode filename out_filename hint line in
     Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
   empty
+  +> flag "mode" (optional string)
+      ~doc: "m run in one of these modes:\n
+             \tshow: print the old definition/proof instead of patching\n
+             \tsafe: write patched file to a different file\n"
   +> flag "rev" (optional_with_default "HEAD" string)
       ~doc:"object git revision of interest (default: HEAD)"
-  +> flag "show" no_arg
-      ~doc:" print the old definition/proof instead of patching"
-  +> flag "safe" no_arg
-      ~doc:" write patched file to a different file"
   +> flag "hint" no_arg
       ~doc:" add the patch to the hint database"
   +> flag "patch" (optional_with_default "patch" string)
@@ -243,7 +254,7 @@ By default, an updated version of the specified file
 with a patch between versions is written to the file.\
 ")
     interface
-    run
+    (fun mode -> run (get_mode mode))
 
 let () =
   Core.Command.run ~version:"0.1" command
