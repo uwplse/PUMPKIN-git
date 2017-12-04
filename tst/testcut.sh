@@ -1,3 +1,5 @@
+# Test cutting an intermediate lemma
+
 set -e
 
 rm TestCut_patch.v

@@ -1,3 +1,5 @@
+# Test basic functionality with an old revision
+
 set -e
 
 rm Test_patch.v
