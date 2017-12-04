@@ -1,3 +1,6 @@
+(* Modes for running PUMPKIN-git *)
+type mode = Default | Show | Safe | Force
+
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
 /(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -71,13 +74,19 @@ let replace pat sub str =
   Str.global_replace (Str.regexp pat) sub str
 
 (* Retrieve just the identifier at a particular git revision. *)
-let retrieve filename revision identifier : in_channel =
-  let script = replace "[$]IDENTIFIER" identifier retrieve_template in
+let retrieve filename rev id : in_channel =
+  let script = replace "[$]IDENTIFIER" id retrieve_template in
   let command =
     Printf.sprintf
       "git show %s:%s | sed -n -E -e \"%s\"" (* Seems necessary to go through bash? *)
-      revision (git_path filename) script
+      rev
+      (git_path filename)
+      script
   in Unix.open_process_in command
+
+(* Retrieve the identifier as a list of strings *)
+let retrieve_text filename rev id : string list =
+  retrieve filename rev id |> slurp
 
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
@@ -154,7 +163,7 @@ let pp_to_def hint pp : string =
   else
     def
 
-(* Overwrite file in unsafe [default] mode *)
+(* Overwrite input_filename with output_filename *)
 let overwrite input_filename output_filename =
   let rewrite = Printf.sprintf "mv %s %s" output_filename input_filename in
   match Unix.system rewrite with
@@ -163,7 +172,7 @@ let overwrite input_filename output_filename =
    | _ ->
       failwith "Cannot overwrite file. Check permissions."
 
-(* Prompt user to overwrite file in unsafe [default] mode *)
+(* Prompt user to overwrite file *)
 let prompt_overwrite input_filename output_filename =
   let diff = Printf.sprintf "diff %s %s" input_filename output_filename in
   output_line stdout "pumpkin-git wants to make the following changes:\n";
@@ -181,49 +190,57 @@ let prompt_overwrite input_filename output_filename =
   in prompt ()
 
 (* Define the patch term without referring to the changed term. *)
-let define_patch input_filename output_filename safe hint line input : unit =
+let define_patch mode input_filename output_filename hint line input : unit =
   let marks_end s1 _ = is_end_line s1 in
   let defs = Core.List.group input ~break:marks_end in
   let patches = List.map (pp_to_def hint) defs in
   splice input_filename output_filename line patches;
-  if not safe then
-    prompt_overwrite input_filename output_filename
+  if not (mode = Safe) then
+    if not (mode = Force) then
+      prompt_overwrite input_filename output_filename
+    else
+      overwrite input_filename output_filename
+
+(* Determine what mode to run PUMPKIN-git in.*)
+let get_mode mode =
+  match mode with
+  | Some "show" -> Show
+  | Some "safe" -> Safe
+  | Some "force" -> Force
+  | None -> Default
+  | _ -> failwith "unrecognized mode"
 
 (* Perform a user command. *)
-let run rev show safe hint patch_id cut cl id filename () =
-  let text = retrieve filename rev id |> slurp in
-  if show then
-    List.iter (output_line stdout) text
+let run mode rev hint patch_id cut cl id filename () =
+  let text = retrieve_text filename rev id in
+  let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
+  if mode = Show then
+    List.iter (output_line stdout) (List.append changed_defs text)
   else
     let line = line_of filename id text in
     let module_name = "rev" ^ rev in
-    let changed_defs =
-      List.flatten
-        (List.map
-           (fun cid -> retrieve filename rev cid |> slurp)
-           cl)
-    in
     let old_text = wrap_in_module (List.append changed_defs text) module_name in
     let patch_text = call_pumpkin patch_id id module_name cut in
     let out_filename = output_filename filename in
     splice filename out_filename line (List.append old_text patch_text);
     let run_coq = Printf.sprintf "coqc %s" out_filename in
-    let patch = define_patch filename out_filename safe hint line in
+    let patch = define_patch mode filename out_filename hint line in
     Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
   empty
+  +> flag "mode" (optional string)
+      ~doc: "m run in one of these modes:\n
+             \tshow: print the old definition/proof instead of patching\n
+             \tsafe: write patched file to a different file\n
+             \tforce: do not prompt to overwrite file"
   +> flag "rev" (optional_with_default "HEAD" string)
       ~doc:"object git revision of interest (default: HEAD)"
-  +> flag "show" no_arg
-      ~doc:" print the old definition/proof instead of patching"
-  +> flag "safe" no_arg
-      ~doc:" write patched file to a different file"
   +> flag "hint" no_arg
       ~doc:" add the patch to the hint database"
   +> flag "patch" (optional_with_default "patch" string)
-      ~doc:"name of the patch (default: patch)"
+      ~doc:" name of the patch (default: patch)"
   +> flag "cut" (optional string)
       ~doc:"app lemma and arguments to cut by"
   +> flag "changed" (listed string)
@@ -242,7 +259,7 @@ By default, an updated version of the specified file
 with a patch between versions is written to the file.\
 ")
     interface
-    run
+    (fun mode -> run (get_mode mode))
 
 let () =
   Core.Command.run ~version:"0.1" command

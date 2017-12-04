@@ -3,7 +3,7 @@
 rm Test_patch.v
 mv Test_head.v Test_head_tmp.v
 mv Test_head_edit.v Test_head.v
-pumpkin-git test Test_head.v -safe
+pumpkin-git test Test_head.v -mode safe
 mv Test_head.v Test_head_edit.v
 mv Test_head_tmp.v Test_head.v
 
