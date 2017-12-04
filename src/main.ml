@@ -232,9 +232,16 @@ let run mode rev hint patch_id cut cl id filename () =
     else
       let patch_text = call_pumpkin patch_id id module_name cut in
       splice filename out_filename line (List.append old_text patch_text);
-      let run_coq = Printf.sprintf "coqc %s" out_filename in
-      let patch = define_patch mode filename out_filename hint line in
-      Unix.open_process_in run_coq |> slurp |> patch
+      if mode = Lazy then
+        ()
+      else
+        let run_coq = Printf.sprintf "coqc %s" out_filename in
+        let patch =
+          if mode = Call then
+            List.iter (output_line stdout)
+          else
+            define_patch mode filename out_filename hint line
+        in Unix.open_process_in run_coq |> slurp |> patch
 
 let interface =
   let open Core.Command.Spec in
