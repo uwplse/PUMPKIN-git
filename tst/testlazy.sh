@@ -1,4 +1,4 @@
-# Test basic functionality with an old revision
+# Test basic functionality in lazy mode
 
 rm Test_patch.v
 
