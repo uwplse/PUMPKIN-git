@@ -1,6 +1,12 @@
 (* Modes for running PUMPKIN-git *)
 type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 
+(* Configurations for running PUMPKIN-git [TODO] *)
+type retriever = 
+
+type config =
+  
+
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
 /(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -69,6 +75,8 @@ let output_line ch s =
   output_string ch s;
   output_char ch '\n'
 
+let output_lines ch = List.iter (output_line ch)
+
 (* Find and replace with silly regex type. *)
 let replace pat sub str =
   Str.global_replace (Str.regexp pat) sub str
@@ -84,9 +92,16 @@ let retrieve filename rev id : in_channel =
       script
   in Unix.open_process_in command
 
-(* Retrieve the identifier as a list of strings *)
-let retrieve_text filename rev id : string list =
+(* Retrieve the identifier definition as a list of strings *)
+let retrieve_def filename rev id : string list =
   retrieve filename rev id |> slurp
+
+(* Retrieve an identifier definition and its dependencies *)
+let retrieve_def_with_deps filename rev id cl : string list * string list =
+  let retrieve_from_file = retrieve_def filename rev in
+  let def = retrieve_from_file id in
+  let changed_defs = List.flatten (List.map retrieve_from_file cl) in
+  (def, changed_defs)
 
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
@@ -109,13 +124,13 @@ let splice input_filename output_filename line text : unit =
       let buffer = input_line input in
       pos := !pos + 1;
       if line = !pos then
-        (List.iter (output_line output) text;
+        (output_lines output text;
          output_char output '\n');
       output_line output buffer
     done
   with End_of_file ->
     if !pos < line then
-      (List.iter (output_line output) text;
+      (output_lines output text;
        output_char output '\n');
     flush output;
     close_in input;
@@ -176,7 +191,7 @@ let overwrite input_filename output_filename =
 let prompt_overwrite input_filename output_filename =
   let diff = Printf.sprintf "diff %s %s" input_filename output_filename in
   output_line stdout "pumpkin-git wants to make the following changes:\n";
-  Unix.open_process_in diff |> slurp |> List.iter (output_line stdout);
+  Unix.open_process_in diff |> slurp |> output_lines stdout;
   let rec prompt () =
     output_line stdout (Printf.sprintf "\noverwrite %s? [y/n]" input_filename);
     match read_line () with
@@ -215,18 +230,24 @@ let get_mode mode =
   | "force" -> Force
   | _ -> failwith "unrecognized mode"
 
+(* TODO impl, comment, etc *)
+let configure_command mode =
+  match mode with
+  | _ -> ()
+
 (* Perform a user command. *)
 let run mode rev hint patch_id cut cl id filename () =
-  let text = retrieve_text filename rev id in
-  let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
-  let text_with_deps = List.append changed_defs text in
+  let configuration = configure_command mode in (* TODO *)
+
+  let (text, changed_deps) = retrieve_def_with_deps filename rev id cl in
+  let text_with_deps = List.append changed_deps text in
   if mode = Show then
-    List.iter (output_line stdout) text_with_deps
+    output_lines stdout text_with_deps
   else
     let line = line_of filename id text in
+    let out_filename = output_filename filename in
     let module_name = "rev" ^ rev in
     let old_text = wrap_in_module text_with_deps module_name in
-    let out_filename = output_filename filename in
     if mode = Define then
       splice filename out_filename line old_text
     else
