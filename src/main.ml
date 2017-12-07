@@ -1,45 +1,36 @@
-(* Modes for running PUMPKIN-git *)
+open Retrieve
+open Strutils
+open Ioutils
+
+(*
+ * Modes for running PUMPKIN-git:
+ *
+ * Show simply prints the old definition.
+ * Define stores the old definition in a copy of the file.
+ * Lazy is like Define, but adds (and doesn't execute) a call to PUMPKIN.
+ * Call is like Lazy, but also executes the call to PUMPKIN.
+ * Safe calls PUMPKIN for a patch, then saves it to a copy of the file.
+ * Interactive prompts the user before adding the patch to the original file.
+ * Force adds the patch directly to the file without prompting the user.
+ *)
 type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 
-(* Configurations for running PUMPKIN-git *)
+(*
+ * Configurations for running PUMPKIN-git:
+ *
+ * The outputter takes the text of a definition (as a list of strings)
+ * and the text of its dependencies (a list of list of strings) and
+ * outputs it in some way to some channel (for example, to standard out
+ * or to a file).
+ *
+ * The processor processes the output and processes it in some way
+ * (for example, running the Coq file to find a patch).
+ *)
 type config =
   {
     outputter : string list -> string list list -> unit;
     processor : unit -> unit;
   }
-
-(* This is the sed template, embedded as a string for convenience. *)
-let retrieve_template = "
-/(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
-  :prf
-  p
-  /(Qed|Admitted|Defined)[.]/!{
-    n
-    b prf
-  }
-  q
-}
-
-/(Definition|Let|Fixpoint|CoFixpoint)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
-  :def
-  p
-  /[^.][.]([ ]*[(][*].*[*][)])*[ ]*$/!{
-    n
-    b def
-  }
-  q
-}
-
-/(Inductive|CoInductive)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
-  :ind
-  p
-  /[^.][.]([ ]*[(][*].*[*][)])*[ ]*$/!{
-    n
-    b ind
-  }
-  q
-}
-"
 
 let lineof_template = "
 /(Theorem|Lemma|Example|Definition|Let|Fixpoint|Inductive)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -48,54 +39,12 @@ let lineof_template = "
 }
 "
 
-let slurp ch =
-  let buf = ref [] in
-  try
-    while true do
-      buf := input_line ch :: !buf
-    done;
-    !buf
-  with End_of_file ->
-    close_in ch;
-    List.rev !buf
-
-(* Get the root directory of the local git repository. *)
-let git_root () =
-  Unix.open_process_in "git rev-parse --show-toplevel" |> slurp |> List.hd
-
-(* Get the path to a file relative to the git repository's root directory. *)
-let git_path filename =
-  let path = Core.Filename.realpath filename in
-  let root = git_root () in
-  let pos = String.length root + 1 in
-  let len = String.length path - String.length root - 1 in
-  String.sub path pos len
-
 (* Why isn't this part of the standard library? *)
 let output_line ch s =
   output_string ch s;
   output_char ch '\n'
 
 let output_lines ch = List.iter (output_line ch)
-
-(* Find and replace with silly regex type. *)
-let replace pat sub str =
-  Str.global_replace (Str.regexp pat) sub str
-
-(* Retrieve just the identifier at a particular git revision. *)
-let retrieve filename rev id : in_channel =
-  let script = replace "[$]IDENTIFIER" id retrieve_template in
-  let command =
-    Printf.sprintf
-      "git show %s:%s | sed -n -E -e \"%s\"" (* Seems necessary to go through bash? *)
-      rev
-      (git_path filename)
-      script
-  in Unix.open_process_in command
-
-(* Retrieve the identifier definition as a list of strings *)
-let retrieve_def filename rev id : string list =
-  retrieve filename rev id |> slurp
 
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
