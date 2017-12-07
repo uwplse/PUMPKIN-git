@@ -1,6 +1,13 @@
 (* Modes for running PUMPKIN-git *)
 type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 
+(* Configurations for running PUMPKIN-git *)
+type config =
+  {
+    outputter : string list -> string list list -> unit;
+    processor : unit -> unit;
+  }
+
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
 /(Theorem|Lemma|Example)[ ]+$IDENTIFIER[^A-Za-z0-9_']/{
@@ -69,6 +76,8 @@ let output_line ch s =
   output_string ch s;
   output_char ch '\n'
 
+let output_lines ch = List.iter (output_line ch)
+
 (* Find and replace with silly regex type. *)
 let replace pat sub str =
   Str.global_replace (Str.regexp pat) sub str
@@ -84,8 +93,8 @@ let retrieve filename rev id : in_channel =
       script
   in Unix.open_process_in command
 
-(* Retrieve the identifier as a list of strings *)
-let retrieve_text filename rev id : string list =
+(* Retrieve the identifier definition as a list of strings *)
+let retrieve_def filename rev id : string list =
   retrieve filename rev id |> slurp
 
 (* Wrap the text in a module *)
@@ -109,13 +118,13 @@ let splice input_filename output_filename line text : unit =
       let buffer = input_line input in
       pos := !pos + 1;
       if line = !pos then
-        (List.iter (output_line output) text;
+        (output_lines output text;
          output_char output '\n');
       output_line output buffer
     done
   with End_of_file ->
     if !pos < line then
-      (List.iter (output_line output) text;
+      (output_lines output text;
        output_char output '\n');
     flush output;
     close_in input;
@@ -176,7 +185,7 @@ let overwrite input_filename output_filename =
 let prompt_overwrite input_filename output_filename =
   let diff = Printf.sprintf "diff %s %s" input_filename output_filename in
   output_line stdout "pumpkin-git wants to make the following changes:\n";
-  Unix.open_process_in diff |> slurp |> List.iter (output_line stdout);
+  Unix.open_process_in diff |> slurp |> output_lines stdout;
   let rec prompt () =
     output_line stdout (Printf.sprintf "\noverwrite %s? [y/n]" input_filename);
     match read_line () with
@@ -215,33 +224,50 @@ let get_mode mode =
   | "force" -> Force
   | _ -> failwith "unrecognized mode"
 
-(* Perform a user command. *)
-let run mode rev hint patch_id cut cl id filename () =
-  let text = retrieve_text filename rev id in
-  let changed_defs = List.flatten (List.map (retrieve_text filename rev) cl) in
-  let text_with_deps = List.append changed_defs text in
+(* Configure how to output definitions. *)
+let configure_outputter mode rev patch_id cut id filename line def deps : unit =
+  let def_with_deps = List.append (List.flatten deps) def in
   if mode = Show then
-    List.iter (output_line stdout) text_with_deps
+    output_lines stdout def_with_deps
   else
-    let line = line_of filename id text in
     let module_name = "rev" ^ rev in
-    let old_text = wrap_in_module text_with_deps module_name in
     let out_filename = output_filename filename in
-    if mode = Define then
-      splice filename out_filename line old_text
-    else
-      let patch_text = call_pumpkin patch_id id module_name cut in
-      splice filename out_filename line (List.append old_text patch_text);
-      if mode = Lazy then
-        ()
-      else
-        let run_coq = Printf.sprintf "coqc %s" out_filename in
-        let patch =
-          if mode = Call then
-            List.iter (output_line stdout)
-          else
-            define_patch mode filename out_filename hint line
-        in Unix.open_process_in run_coq |> slurp |> patch
+    let old_defs = wrap_in_module def_with_deps module_name in
+    match mode with
+    | Define ->
+       splice filename out_filename line old_defs
+    | _ ->
+       let patch_text = call_pumpkin patch_id id module_name cut in
+       splice filename out_filename line (List.append old_defs patch_text)
+
+(* Configure how to process the Coq file that calls PUMPKIN PATCH. *)
+let configure_processor mode filename hint line () =
+  let out_filename = output_filename filename in
+  let run_coq = Printf.sprintf "coqc %s" out_filename in
+  match mode with
+  | Call ->
+     let process = Unix.open_process_in run_coq in
+     process |> slurp |> output_lines stdout
+  | Safe | Interactive | Force ->
+     let process = Unix.open_process_in run_coq in
+     process |> slurp |> define_patch mode filename out_filename hint line
+  | _ ->
+     ()
+
+(* Configure a user command. *)
+let configure_command mode rev hint patch_id cut id filename line =
+  let outputter = configure_outputter mode rev patch_id cut id filename line in
+  let processor = configure_processor mode filename hint line in
+  { outputter; processor }
+
+(* Perform a user command. *)
+let run mode rev hint patch_id cut cl id filename =
+  let def = retrieve_def filename rev id in
+  let line = line_of filename id def in
+  let config = configure_command mode rev hint patch_id cut id filename line in
+  let changed_deps = List.map (retrieve_def filename rev) cl in
+  config.outputter def changed_deps;
+  config.processor
 
 let interface =
   let open Core.Command.Spec in
