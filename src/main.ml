@@ -1,11 +1,12 @@
 (* Modes for running PUMPKIN-git *)
 type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 
-(* Configurations for running PUMPKIN-git [TODO] *)
-type retriever = 
-
+(* Configurations for running PUMPKIN-git *)
 type config =
-  
+  {
+    outputter : string list -> string list list -> unit;
+    processor : unit -> unit;
+  }
 
 (* This is the sed template, embedded as a string for convenience. *)
 let retrieve_template = "
@@ -95,13 +96,6 @@ let retrieve filename rev id : in_channel =
 (* Retrieve the identifier definition as a list of strings *)
 let retrieve_def filename rev id : string list =
   retrieve filename rev id |> slurp
-
-(* Retrieve an identifier definition and its dependencies *)
-let retrieve_def_with_deps filename rev id cl : string list * string list =
-  let retrieve_from_file = retrieve_def filename rev in
-  let def = retrieve_from_file id in
-  let changed_defs = List.flatten (List.map retrieve_from_file cl) in
-  (def, changed_defs)
 
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
@@ -231,38 +225,49 @@ let get_mode mode =
   | _ -> failwith "unrecognized mode"
 
 (* TODO impl, comment, etc *)
-let configure_command mode =
+let configure_outputter mode rev patch_id cut id filename line def deps : unit =
+  let def_with_deps = List.append def (List.flatten deps) in
+  if mode = Show then
+    output_lines stdout def_with_deps
+  else
+    let module_name = "rev" ^ rev in
+    let out_filename = output_filename filename in
+    let old_defs = wrap_in_module def_with_deps module_name in
+    match mode with
+    | Define ->
+       splice filename out_filename line old_defs
+    | _ ->
+       let patch_text = call_pumpkin patch_id id module_name cut in
+       splice filename out_filename line (List.append old_defs patch_text)
+
+(* TODO impl, comment, etc *)
+let configure_processor mode filename hint line () =
+  let out_filename = output_filename filename in
+  let run_coq = Printf.sprintf "coqc %s" out_filename in
   match mode with
-  | _ -> ()
+  | Call ->
+     let process = Unix.open_process_in run_coq in
+     process |> slurp |> output_lines stdout
+  | Safe | Interactive | Force ->
+     let process = Unix.open_process_in run_coq in
+     process |> slurp |> define_patch mode filename out_filename hint line
+  | _ ->
+     ()
+
+(* TODO impl, comment, etc *)
+let configure_command mode rev hint patch_id cut id filename line =
+  let outputter = configure_outputter mode rev patch_id cut id filename line in
+  let processor = configure_processor mode filename hint line in
+  { outputter; processor }
 
 (* Perform a user command. *)
-let run mode rev hint patch_id cut cl id filename () =
-  let configuration = configure_command mode in (* TODO *)
-
-  let (text, changed_deps) = retrieve_def_with_deps filename rev id cl in
-  let text_with_deps = List.append changed_deps text in
-  if mode = Show then
-    output_lines stdout text_with_deps
-  else
-    let line = line_of filename id text in
-    let out_filename = output_filename filename in
-    let module_name = "rev" ^ rev in
-    let old_text = wrap_in_module text_with_deps module_name in
-    if mode = Define then
-      splice filename out_filename line old_text
-    else
-      let patch_text = call_pumpkin patch_id id module_name cut in
-      splice filename out_filename line (List.append old_text patch_text);
-      if mode = Lazy then
-        ()
-      else
-        let run_coq = Printf.sprintf "coqc %s" out_filename in
-        let patch =
-          if mode = Call then
-            List.iter (output_line stdout)
-          else
-            define_patch mode filename out_filename hint line
-        in Unix.open_process_in run_coq |> slurp |> patch
+let run mode rev hint patch_id cut cl id filename =
+  let def = retrieve_def filename rev id in
+  let line = line_of filename id def in
+  let config = configure_command mode rev hint patch_id cut id filename line in
+  let changed_deps = List.map (retrieve_def filename rev) cl in
+  config.outputter def changed_deps;
+  config.processor
 
 let interface =
   let open Core.Command.Spec in
