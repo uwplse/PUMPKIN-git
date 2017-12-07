@@ -50,28 +50,6 @@ let output_filename filename : string =
   let prefix = Core.Filename.chop_suffix filename ".v" in
   prefix ^ "_patch.v"
 
-(* Insert the given text into the file's contents at the specified line. *)
-let splice input_filename output_filename line text : unit =
-  let pos = ref 0 in
-  let input = open_in input_filename in
-  let output = open_out output_filename in
-  try
-    while true do
-      let buffer = input_line input in
-      pos := !pos + 1;
-      if line = !pos then
-        (output_lines output text;
-         output_char output '\n');
-      output_line output buffer
-    done
-  with End_of_file ->
-    if !pos < line then
-      (output_lines output text;
-       output_char output '\n');
-    flush output;
-    close_in input;
-    close_out output
-
 (* Append the text that calls PUMPKIN to the end of the file. *)
 let call_pumpkin patch_id id module_name cut =
   let import = "Require Import Patcher.Patch.\n" in
@@ -92,10 +70,6 @@ let line_of filename identifier text : int =
   let command = Printf.sprintf "sed -n -E -e \"%s\" %s" script filename in
   let get_end i = i + List.length text in
   Unix.open_process_in command |> slurp |> List.hd |> int_of_string |> get_end
-
-(* Check whether a given line marks the end of a patch *)
-let is_end_line s =
-  s = "END PATCH"
 
 (* Get a patch definition from pretty-printed output *)
 let pp_to_def hint pp : string =
@@ -142,7 +116,7 @@ let prompt_overwrite input_filename output_filename =
 
 (* Define the patch term without referring to the changed term. *)
 let define_patch mode input_filename output_filename hint line input : unit =
-  let marks_end s1 _ = is_end_line s1 in
+  let marks_end s1 _ = s1 = "END PATCH" in
   let defs = Core.List.group input ~break:marks_end in
   let patches = List.map (pp_to_def hint) defs in
   splice input_filename output_filename line patches;
