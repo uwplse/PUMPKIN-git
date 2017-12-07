@@ -18,3 +18,5 @@ tst/Test.v.tmp
 *.aux
 *.glob
 *.vo
+src/._bcdi/
+src/._d/

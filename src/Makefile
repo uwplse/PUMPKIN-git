@@ -1,9 +1,12 @@
+RESULT = pumpkin-git
+SOURCES = \
+  strutils.mli strutils.ml \
+  ioutils.mli ioutils.ml \
+  retrieve.mli retrieve.ml \
+  main.ml
 
-all: main.cmi
-	ocamlfind ocamlopt -o pumpkin-git -linkpkg -thread -package core,str main.ml
+THREADS = yes
+PACKS = core str
 
-main.cmi:
-	ocamlfind ocamlopt -o pumpkin-git -linkpkg -thread -package core,str main.mli
-
-clean:
-	rm main.{cmx,cmi,o} pumpkin-git
+OCAMLMAKEFILE = OCamlMakefile
+include $(OCAMLMAKEFILE)
