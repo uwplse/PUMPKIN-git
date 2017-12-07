@@ -226,7 +226,7 @@ let get_mode mode =
 
 (* TODO impl, comment, etc *)
 let configure_outputter mode rev patch_id cut id filename line def deps : unit =
-  let def_with_deps = List.append def (List.flatten deps) in
+  let def_with_deps = List.append (List.flatten deps) def in
   if mode = Show then
     output_lines stdout def_with_deps
   else
