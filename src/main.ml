@@ -224,7 +224,7 @@ let get_mode mode =
   | "force" -> Force
   | _ -> failwith "unrecognized mode"
 
-(* TODO impl, comment, etc *)
+(* Configure how to output definitions. *)
 let configure_outputter mode rev patch_id cut id filename line def deps : unit =
   let def_with_deps = List.append (List.flatten deps) def in
   if mode = Show then
@@ -240,7 +240,7 @@ let configure_outputter mode rev patch_id cut id filename line def deps : unit =
        let patch_text = call_pumpkin patch_id id module_name cut in
        splice filename out_filename line (List.append old_defs patch_text)
 
-(* TODO impl, comment, etc *)
+(* Configure how to process the Coq file that calls PUMPKIN PATCH. *)
 let configure_processor mode filename hint line () =
   let out_filename = output_filename filename in
   let run_coq = Printf.sprintf "coqc %s" out_filename in
@@ -254,7 +254,7 @@ let configure_processor mode filename hint line () =
   | _ ->
      ()
 
-(* TODO impl, comment, etc *)
+(* Configure a user command. *)
 let configure_command mode rev hint patch_id cut id filename line =
   let outputter = configure_outputter mode rev patch_id cut id filename line in
   let processor = configure_processor mode filename hint line in
