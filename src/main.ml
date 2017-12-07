@@ -39,13 +39,6 @@ let lineof_template = "
 }
 "
 
-(* Why isn't this part of the standard library? *)
-let output_line ch s =
-  output_string ch s;
-  output_char ch '\n'
-
-let output_lines ch = List.iter (output_line ch)
-
 (* Wrap the text in a module *)
 let wrap_in_module text name : string list =
   let open_module = Printf.sprintf "Module %s.\n" name in
