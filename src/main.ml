@@ -2,6 +2,7 @@ open Retrieve
 open Strutils
 open Ioutils
 open Processors
+open Outputters
 
 (*
  * Modes for running PUMPKIN-git:
@@ -19,17 +20,15 @@ type mode = Show | Define | Lazy | Call | Safe | Interactive | Force
 (*
  * Configurations for running PUMPKIN-git:
  *
- * The outputter takes the text of a definition (as a list of strings)
- * and the text of its dependencies (a list of list of strings) and
- * outputs it in some way to some channel (for example, to standard out
- * or to a file).
+ * The outputter outputs a definition and its dependencies in some way
+ * to some channel (for example, to a Coq file).
  *
  * The processor the output and processes it in some way
  * (for example, running the Coq file to find a patch).
  *)
 type config =
   {
-    outputter : string list -> string list list -> unit;
+    outputter : outputter;
     processor : processor;
   }
 
@@ -40,29 +39,10 @@ let lineof_template = "
 }
 "
 
-(* Wrap the text in a module *)
-let wrap_in_module text name : string list =
-  let open_module = Printf.sprintf "Module %s.\n" name in
-  let close_module = Printf.sprintf "\nEnd %s." name in
-  open_module :: (List.append text [close_module])
-
 (* Name the patch output file. *)
 let output_filename filename : string =
   let prefix = Core.Std.Filename.chop_suffix filename ".v" in
   prefix ^ "_patch.v"
-
-(* Append the text that calls PUMPKIN to the end of the file. *)
-let call_pumpkin patch_id id module_name cut =
-  let import = "Require Import Patcher.Patch.\n" in
-  let set_printing = "Set PUMPKIN Printing.\n\n" in
-  let old_id = Printf.sprintf "%s.%s" module_name id in
-  let patch =
-    if Core.Std.Option.is_some cut then
-      let app = Core.Std.Option.value_exn cut in
-      Printf.sprintf "Patch Proof %s %s cut by %s as %s." old_id id app patch_id
-    else
-      Printf.sprintf "Patch Proof %s %s as %s." old_id id patch_id
-  in [import; set_printing; patch; "\n\n"]
 
 (* Get the line at which the definition of the given Coq identifier ends. *)
 let line_of filename identifier text : int =
@@ -85,23 +65,18 @@ let get_mode mode =
   | _ -> failwith "unrecognized mode"
 
 (* Configure how to output definitions. *)
-let configure_outputter mode rev patch_id cut id filename line def deps : unit =
-  let def_with_deps = List.append (List.flatten deps) def in
-  if mode = Show then
-    output_lines stdout def_with_deps
-  else
-    let module_name = "rev" ^ rev in
-    let out_filename = output_filename filename in
-    let old_defs = wrap_in_module def_with_deps module_name in
-    match mode with
-    | Define ->
-       splice filename out_filename line old_defs
-    | _ ->
-       let patch_text = call_pumpkin patch_id id module_name cut in
-       splice filename out_filename line (List.append old_defs patch_text)
+let configure_outputter mode rev patch_id cut id filename line : outputter =
+  let out_filename = output_filename filename in
+  match mode with
+  | Show ->
+     show
+  | Define ->
+     define rev filename out_filename line
+  | _ ->
+     patch rev patch_id cut id filename out_filename line
 
 (* Configure how to process the Coq file that calls PUMPKIN PATCH. *)
-let configure_processor mode filename hint line =
+let configure_processor mode filename hint line : processor =
   let out_filename = output_filename filename in
   match mode with
   | Call ->
@@ -127,7 +102,7 @@ let run mode rev hint patch_id cut cl id filename () =
   let line = line_of filename id def in
   let config = configure_command mode rev hint patch_id cut id filename line in
   let changed_deps = List.map (retrieve_def filename rev) cl in
-  config.outputter def changed_deps;
+  output_using config.outputter def changed_deps;
   process_using config.processor
 
 let interface =
