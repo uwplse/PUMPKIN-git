@@ -1,6 +1,13 @@
 # PUMPKIN-git: A git helper for PUMPKIN PATCH
 
-## Dependencies
+
+Suppose you are working inside of a local repository with some Coq code.
+In this repository, you make a breaking change, and adapt an example
+proof to that change.
+You can use PUMPKIN-git to search that example for a patch that corresponds to
+the change, which you can use to patch other broken proofs.
+
+# Dependencies
 
 To use this tool, you need to have the [PUMPKIN PATCH plugin](https://github.com/uwplse/PUMPKIN-PATCH) installed.
 
@@ -11,7 +18,7 @@ You can install it through opam:
 opam install core
 ```
 
-## Building
+# Building
 
 ```
 cd src
@@ -21,20 +28,14 @@ export PATH=`pwd`:$PATH # for trying out the tool
 
 # Usage
 
-Suppose you are working inside of a local repository with some Coq code.
-In this repository, you make a breaking change, and adapt an example
-proof to that change.
-You can use PUMPKIN-git to search that example for a patch that corresponds to
-the change, which you can use to patch other broken proofs.
-
-Simply run:
+To search for a patch, simply run:
 
 ```
 pumpkin-git example_proof_id file.v
 ```
 
 This will search for a patch that corresponds to the change in
-`changed_term_name` compared to the HEAD of your local repository.
+`example_proof_id` in `file.v` compared to the HEAD of your local repository.
 It will then prompt you with the patch it finds, and either
 overwrite the file (if you say yes) or save the results to a temporary file
 (if you say no).
