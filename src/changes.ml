@@ -5,6 +5,15 @@ open Checksums
  * topologically sorted order.
  *
  * This is independent of the architecture that fetches the graph.
+ *
+ * Current algorithm:
+ * 1. Get the dependency graphs n (old) and n' (new)
+ * 2. Map each ID to a checksum in both n and n'
+ * 3. Filter out everything in checksums(n) that either has a different ID
+ *    or a different checksum
+ * 4. Transitively "taint" nodes that have dependencies that have changed
+ * 5. Return tainted IDs in topologically sorted order
+ *
  * TODO move out node definition and graph fetching to a graph.ml file
  * that you will implement and sub with real architecture
  * TODO move out plural checksums to checksums ml file
