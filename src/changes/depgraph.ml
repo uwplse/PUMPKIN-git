@@ -40,6 +40,7 @@ module IDHash =
 module IDHashtbl = Hashtbl.Make(IDHash)
 
 let add v n = IDHashtbl.add v n; v
+let create g = IDHashtbl.create (size g)
 
 (* --- Operations on Dependencies --- *)
 
@@ -51,4 +52,4 @@ let checksums (g : graph) : (string * string) list =
     else
       let id_checksum = (node_id n, checksum n) in
       id_checksum :: (flat_map (get_checksums (add v n)) (adjacent n))
-  in get_checksums (IDHashtbl.create (size g)) (root g)
+  in get_checksums (create g) (root g)

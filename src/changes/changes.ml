@@ -28,7 +28,7 @@ let taint (cs : (string * string) list) (g : graph) : string list =
         node_id n :: tainted
       else
         []
-  in taint_nodes (IDHashtbl.create (size g)) (root g)
+  in taint_nodes (create g) (root g)
 
 (* Check out an old git revision (TODO move to another file) *)
 let checkout_rev (rev : string) : unit =

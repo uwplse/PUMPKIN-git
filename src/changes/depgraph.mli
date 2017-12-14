@@ -51,6 +51,11 @@ module IDHashtbl : Hashtbl.S with type key = node
  *)
 val add : 'a IDHashtbl.t -> node -> 'a IDHashtbl.t
 
+(*
+ * Create
+ *)
+val create : graph -> 'a IDHashtbl.t
+
 (* --- Operations on Dependencies --- *)
 
 (*
