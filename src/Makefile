@@ -1,9 +1,10 @@
 RESULT = pumpkin-git
 SOURCES = \
-  strutils.mli strutils.ml \
-  ioutils.mli ioutils.ml \
-  checksums.mli checksums.ml \
-  changes.ml \
+  lib/utilities.mli lib/utilities.ml \
+  lib/strutils.mli lib/strutils.ml \
+  lib/ioutils.mli lib/ioutils.ml \
+  changes/depgraph.mli changes/depgraph.ml \
+  changes/changes.ml \
   retrieve.mli retrieve.ml \
   processors.mli processors.ml \
   outputters.mli outputters.ml \
