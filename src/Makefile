@@ -3,6 +3,7 @@ SOURCES = \
   lib/utilities.mli lib/utilities.ml \
   lib/strutils.mli lib/strutils.ml \
   lib/ioutils.mli lib/ioutils.ml \
+  lib/git.mli lib/git.ml \
   changes/depgraph.mli changes/depgraph.ml \
   changes/changes.ml \
   retrieve.mli retrieve.ml \

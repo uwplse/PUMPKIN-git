@@ -1,5 +1,6 @@
 open Depgraph
 open Utilities
+open Git
 
 (*
  * Pull in all of the changed dependencies for a definition in
@@ -30,28 +31,24 @@ let taint (cs : (string * string) list) (g : graph) : string list =
         []
   in taint_nodes (create g) (root g)
 
-(* Check out an old git revision (TODO move to another file) *)
-let checkout_rev (rev : string) : unit =
-  () (* TODO implement *)
-  (* TODO make sure this terminates before running rest of code *)
-
-(* Go back to current revision, then reset to remove temp commit (TODO move) *)
-let reset_revert (prev_rev : string) : unit =
-  () (* TODO implement *)
-
 (* Get the changed dependencies of a definition (inclusive) *)
 let changed_dependencies (id : string) (rev : string) =
   let g' = dep_graph id in
   let cs_g' = checksums g' in
-  checkout_rev rev;
+  stash ();
   try
+    checkout_rev rev;
     let g = dep_graph id in
     let cs_g = checksums g in
-    reset_revert "HEAD^";
+    checkout_rev "HEAD";
     let cs = sub cs_g cs_g' in
     taint cs g
   with _ ->
-    reset_revert "HEAD^";
-    failwith "Could not identify dependencies"
+    try
+      checkout_rev "HEAD";
+      stash_pop ();
+      failwith "Could not identify dependencies"
+    with _ ->
+      stash_pop ();
+      failwith "Git state may be inconsistent"
 
-(* TODO CLI, to build all dependencies separately *)

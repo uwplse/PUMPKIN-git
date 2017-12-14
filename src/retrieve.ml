@@ -1,5 +1,6 @@
 open Ioutils
 open Strutils
+open Git
 
 (* --- Retrieve Coq definitions and dependencies from Git --- *)
 
@@ -35,18 +36,6 @@ let retrieve_template = "
   q
 }
 "
-
-(* Get the root directory of the local git repository. *)
-let git_root () =
-  Unix.open_process_in "git rev-parse --show-toplevel" |> slurp |> List.hd
-
-(* Get the path to a file relative to the git repository's root directory. *)
-let git_path filename =
-  let path = Core.Std.Filename.realpath filename in
-  let root = git_root () in
-  let pos = String.length root + 1 in
-  let len = String.length path - String.length root - 1 in
-  String.sub path pos len
 
 (* Retrieve just the identifier at a particular git revision. *)
 let retrieve filename rev id : in_channel =
