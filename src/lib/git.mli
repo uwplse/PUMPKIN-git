@@ -9,7 +9,7 @@ val checkout : string -> unit
 (*
  * Get the root directory of the local git repository
  *)
-val git_root : unit -> unit
+val git_root : unit -> string
 
 (*
  * Get the path to a file relative to the git repository's root directory

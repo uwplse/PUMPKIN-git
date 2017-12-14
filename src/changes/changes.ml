@@ -37,18 +37,19 @@ let changed_dependencies (id : string) (rev : string) =
   let cs_g' = checksums g' in
   stash ();
   try
-    checkout_rev rev;
+    checkout rev;
     let g = dep_graph id in
     let cs_g = checksums g in
-    checkout_rev "HEAD";
+    checkout "HEAD";
+    stash_pop ();
     let cs = sub cs_g cs_g' in
     taint cs g
-  with _ ->
+  with Failure f -> (* TODO implement try/finally, catch all errors *)
     try
-      checkout_rev "HEAD";
+      checkout "HEAD";
       stash_pop ();
-      failwith "Could not identify dependencies"
-    with _ ->
+      failwith (String.concat ": " ["Could not identify dependencies"; f])
+    with Failure f_git ->
       stash_pop ();
-      failwith "Git state may be inconsistent"
+      failwith f_git
 
