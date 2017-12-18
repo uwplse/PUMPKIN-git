@@ -7,6 +7,10 @@ open Utilities
 type node = { id : string ; adj : node list ; checksum : string }
 type graph = { root : node ; size : int }
 
+(* --- Infrastructure --- *)
+
+(* Call the plugin to get *)
+
 (* --- Graphs --- *)
 
 (* Get the dependency graph for a definition and return the root node *)
