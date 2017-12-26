@@ -32,13 +32,13 @@ let taint (cs : (string * string) list) (g : graph) : string list =
   in taint_nodes (create g) (root g)
 
 (* Get the changed dependencies of a definition (inclusive) *)
-let changed_dependencies (id : string) (rev : string) =
-  let g' = dep_graph id in
+let changed_dependencies (filename : string) (id : string) (rev : string) =
+  let g' = dep_graph filename id in
   let cs_g' = checksums g' in
   stash ();
   try
     checkout rev;
-    let g = dep_graph id in
+    let g = dep_graph filename id in
     let cs_g = checksums g in
     checkout "HEAD";
     stash_pop ();

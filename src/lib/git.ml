@@ -1,29 +1,27 @@
 open Ioutils
+open Cmd
 
 (*
  * Git utilities
  *)
 
 let stash () =
-  match Unix.system "git stash" with
-  | WEXITED 0 ->
-     ()
-  | _ ->
-     failwith "Could not stash; please commit current work and try again"
+  try_execute
+    "git stash"
+    []
+    "Could not stash; please commit current work and try again"
 
 let stash_pop () =
-  match Unix.system "git stash pop" with
-  | WEXITED 0 ->
-     ()
-  | _ ->
-     failwith "Could not pop stash; Git state may be inconsistent"
+  try_execute
+    "git stash pop"
+    []
+    "Could not pop stash; Git state may be inconsistent"
 
 let checkout (rev : string) : unit =
-  match Unix.system (Printf.sprintf "git checkout %s" rev) with
-  | WEXITED 0 ->
-     ()
-  | _ ->
-     failwith "Could not checkout revision; Git state may be inconsistent"
+  try_execute
+    "git checkout"
+    [rev]
+    "Could not checkout revision; Git state may be inconsistent"
 
 (* Get the root directory of the local git repository. *)
 let git_root () =

@@ -2,6 +2,7 @@ RESULT = pumpkin-git
 SOURCES = \
   lib/utilities.mli lib/utilities.ml \
   lib/strutils.mli lib/strutils.ml \
+  lib/cmd.mli lib/cmd.ml \
   lib/ioutils.mli lib/ioutils.ml \
   lib/git.mli lib/git.ml \
   changes/depgraph.mli changes/depgraph.ml \

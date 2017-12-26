@@ -1,4 +1,5 @@
 open Utilities
+open Cmd
 
 (*
  * Dependency graphs for Coq terms
@@ -13,8 +14,16 @@ type graph = { root : node ; size : int }
 
 (* --- Graphs --- *)
 
+(* Generate the dot file *)
+let generate_dot (filename : string) (id : string) =
+  try_execute
+    "dpdgraph.sh"
+    [filename; id]
+    "Failed to generate .dot file for dependency graph"
+
 (* Get the dependency graph for a definition and return the root node *)
-let dep_graph (id : string) : graph =
+let dep_graph (filename : string) (id : string) : graph =
+  generate_dot filename id;
   let adj = [] in
   let checksum = id in
   let root = { id ; adj ; checksum } in

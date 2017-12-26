@@ -8,9 +8,9 @@ type node
 (* --- Graphs --- *)
 
 (*
- * Get the dependency graph from a definition identifier
+ * Get the dependency graph from a filename and definition identifier
  *)
-val dep_graph : string -> graph
+val dep_graph : string -> string -> graph
 
 (*
  * Get the root node of a dependency graph
