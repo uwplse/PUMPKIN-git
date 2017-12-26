@@ -3,7 +3,7 @@ open Strutils
 open Ioutils
 open Processors
 open Outputters
-open Depgraph (* TODO temporary *)
+open Changes (* TODO temporary *)
 
 (*
  * Modes for running PUMPKIN-git:
@@ -104,7 +104,7 @@ let run mode rev hint patch_id cut cl id filename () =
   let config = configure_command mode rev hint patch_id cut id filename line in
   let changed_deps = List.map (retrieve_def filename rev) cl in
   (* TODO temporary, before we fully integrate *)
-  let graph = dep_graph filename id in
+  let graph = changed_dependencies filename id rev in
   output_using config.outputter def changed_deps;
   process_using config.processor
 
