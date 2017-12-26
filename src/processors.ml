@@ -30,15 +30,10 @@ let pp_to_def hint pp : string =
 
 (* Update a file to contain a patch *)
 let define_patch in_filename out_filename hint line input =
-<<<<<<< HEAD
-  let marks_end s1 _ = s1 = "END PATCH" in
-  let defs = Core.List.group input ~break:marks_end in
-=======
   let input_string = String.concat "\n" input in
   let input_split = Str.split (Str.regexp "END PATCH") input_string in
   let defs = List.map (Str.split (Str.regexp "\n")) input_split in
   Printf.printf "%d" (List.length defs);
->>>>>>> core-113
   let patches = List.map (pp_to_def hint) defs in
   splice in_filename out_filename line patches
 
