@@ -12,4 +12,7 @@ Require dpdgraph.dpdgraph.
 Print DependGraph $2.
 EOF
 
+dpd2dot graph.dpd
+rm graph.dpd
+
 

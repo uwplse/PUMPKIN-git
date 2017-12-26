@@ -12,7 +12,7 @@ SOURCES = \
   main.ml
 
 THREADS = yes
-PACKS = core str
+PACKS = core str dot
 
 OCAMLMAKEFILE = OCamlMakefile
 include $(OCAMLMAKEFILE)

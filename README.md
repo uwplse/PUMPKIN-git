@@ -9,13 +9,18 @@ the change, which you can use to patch other broken proofs.
 
 # Dependencies
 
-To use this tool, you need to have the [PUMPKIN PATCH plugin](https://github.com/uwplse/PUMPKIN-PATCH) installed.
+To use this tool, you need to have the [PUMPKIN PATCH](https://github.com/uwplse/PUMPKIN-PATCH) plugin installed.
 
-In addition, you need the [core](https://opam.ocaml.org/packages/core/) package.
-You can install it through opam:
+In addition, you need the
+[coq-dpdgraph](https://github.com/Karmaki/coq-dpdgraph) plugin,
+and the [core](https://opam.ocaml.org/packages/core/)
+and [OCamldot](http://zoggy.github.io/ocamldot/) packages.
+You can install them through opam:
 
 ```
+opam install coq-dpdgraph
 opam install core
+opam install ocamldot
 ```
 
 # Building

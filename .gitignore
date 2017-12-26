@@ -21,3 +21,4 @@ tst/Test.v.tmp
 src/._bcdi/
 src/._d/
 dpdgraph/graph.dpd
+dpdgraph/graph.dot
