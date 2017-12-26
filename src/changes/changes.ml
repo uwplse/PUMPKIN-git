@@ -33,20 +33,22 @@ let taint (cs : (string * string) list) (g : graph) : string list =
 
 (* Get the changed dependencies of a definition (inclusive) *)
 let changed_dependencies (filename : string) (id : string) (rev : string) =
-  let g' = dep_graph filename id in
-  let cs_g' = checksums g' in
+  (*let g' = dep_graph filename id in
+  let cs_g' = checksums g' in*)
+  (* TODO file may not compile, and that's OK, so what do we do? *)
   stash ();
   try
     checkout rev;
     let g = dep_graph filename id in
     let cs_g = checksums g in
-    checkout "HEAD";
+    let cs_g' = cs_g in (* TODO temporary while we solve above *)
+    checkout "-";
     stash_pop ();
     let cs = sub cs_g cs_g' in
     taint cs g
   with Failure f -> (* TODO implement try/finally, catch all errors *)
     try
-      checkout "HEAD";
+      checkout "-";
       stash_pop ();
       failwith (String.concat ": " ["Could not identify dependencies"; f])
     with Failure f_git ->
