@@ -41,7 +41,7 @@ let changed_dependencies (filename : string) (id : string) (rev : string) =
     checkout rev;
     let g = dep_graph filename id in
     let cs_g = checksums g in
-    let cs_g' = cs_g in (* TODO temporary while we solve above problem *)
+    let cs_g' = cs_g in (* TODO temporary while we solve above problem~ *)
     checkout "-";
     stash_pop ();
     let cs = sub cs_g cs_g' in
