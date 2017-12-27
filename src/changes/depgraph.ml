@@ -13,10 +13,10 @@ type graph = { root : node ; size : int }
 
 (* Generate the dot file *)
 let generate_dot (filename : string) (id : string) =
-  let root_dir = git_root () in
-  checkout_file (Printf.sprintf "%s%s" root_dir "/src/dpdgraph.sh") "-";
+  let dot_script = Printf.sprintf "%s%s" (git_root ()) "/src/dpdgraph.sh" in
+  checkout_file dot_script "-";
   try_execute
-    "dpdgraph.sh"
+    dot_script
     [filename; id]
     "Failed to generate .dot file for dependency graph"
 
