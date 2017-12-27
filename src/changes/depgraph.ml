@@ -1,5 +1,6 @@
 open Utilities
 open Cmd
+open Git
 
 (*
  * Dependency graphs for Coq terms
@@ -8,14 +9,11 @@ open Cmd
 type node = { id : string ; adj : node list ; checksum : string }
 type graph = { root : node ; size : int }
 
-(* --- Infrastructure --- *)
-
-(* Call the plugin to get *)
-
 (* --- Graphs --- *)
 
 (* Generate the dot file *)
 let generate_dot (filename : string) (id : string) =
+  checkout_file "dpdgraph.sh" "-";
   try_execute
     "dpdgraph.sh"
     [filename; id]

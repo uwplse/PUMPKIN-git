@@ -37,20 +37,20 @@ let changed_dependencies (filename : string) (id : string) (rev : string) =
   (*let g' = dep_graph filename id in
   let cs_g' = checksums g' in*)
   (* TODO file may not compile, and that's OK, so what do we do? *)
-  let has_changes = Unix.open_process_in "git diff" |> slurp |> non_empty in
-  stash ();
+  let run_iff_uncommitted = run_iff (has_uncommitted ())  in
+  run_iff_uncommitted stash ();
   try
     checkout rev;
     let g = dep_graph filename id in
     let cs_g = checksums g in
     let cs_g' = cs_g in (* TODO temporary while we solve above problem~ *)
     checkout "-";
-    (if has_changes then stash_pop () else ());
+    run_iff_uncommitted stash_pop ();
     let cs = sub cs_g cs_g' in
     taint cs g
   with Failure f -> (* TODO implement try/finally, catch errors separately, fix git state if necessary *)
     checkout "-";
-    (if has_changes then stash_pop () else ());
+    run_iff_uncommitted stash_pop ();
     failwith (String.concat ": " ["Could not identify dependencies"; f])
 
 

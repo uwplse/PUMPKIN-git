@@ -1,9 +1,12 @@
 open Ioutils
 open Cmd
+open Utilities
 
 (*
  * Git utilities
  *)
+
+(* --- Basic git functionality --- *)
 
 let stash () =
   try_execute
@@ -22,6 +25,28 @@ let checkout (rev : string) : unit =
     "git checkout"
     [rev]
     "Could not checkout revision; Git state may be inconsistent"
+
+let checkout_file (filename : string) (rev : string) : unit =
+  try_execute
+    "git checkout"
+    [rev; "--"; filename]
+    "Could not checkout file from revision; Git state may be inconsistent"
+
+let diff () : string list =
+  Unix.open_process_in "git diff" |> slurp
+
+(* --- Complex sequences of commands --- *)
+
+(* Return a command that runs if and only if a condition is met *)
+let run_iff (condition : bool) (command : unit -> unit) : unit -> unit =
+  if condition then
+    command
+  else
+    (fun _ -> ())
+
+(* Check if there are any local uncommitted changes *)
+let has_uncommitted () : bool =
+  diff () |> non_empty
 
 (* Get the root directory of the local git repository. *)
 let git_root () =
