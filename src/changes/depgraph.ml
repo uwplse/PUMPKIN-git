@@ -43,7 +43,6 @@ let attr_value (aid : string) (s : Odot.stmt) : string =
 (* Process a list of statements *)
 let process_statements (root_s : Odot.stmt) (sl : Odot.stmt list) : graph =
   let id = attr_value "label" root_s in
-  Printf.printf "found id: %s\n\n" id;
   let adj = [] in (* TODO *)
   let checksum = id in (* TODO *)
   let root = { id ; adj ; checksum } in
