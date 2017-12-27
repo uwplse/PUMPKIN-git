@@ -13,7 +13,8 @@ type graph = { root : node ; size : int }
 
 (* Generate the dot file *)
 let generate_dot (filename : string) (id : string) =
-  checkout_file "dpdgraph.sh" "-";
+  let root_dir = git_root () in
+  checkout_file (Printf.sprintf "%s%s" root_dir "/src/" "dpdgraph.sh") "-";
   try_execute
     "dpdgraph.sh"
     [filename; id]
