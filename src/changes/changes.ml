@@ -37,6 +37,7 @@ let changed_dependencies (filename : string) (id : string) (rev : string) =
   (*let g' = dep_graph filename id in
   let cs_g' = checksums g' in*)
   (* TODO file may not compile, and that's OK, so what do we do? *)
+  (* TODO to solve, only compile up to supplied line *)
   let run_iff_uncommitted = run_iff (has_uncommitted ())  in
   run_iff_uncommitted stash ();
   try
