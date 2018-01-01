@@ -216,4 +216,5 @@ let checksums (g : graph) : (string * string) list =
   in
   let cs = get_checksums (create g) (root g) in
   List.iter (fun (id, _) -> Printf.printf "%s\n" id) cs;
+  Printf.printf "%s\n\n" "----";
   cs
