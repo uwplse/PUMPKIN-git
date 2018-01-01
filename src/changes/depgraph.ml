@@ -89,7 +89,10 @@ let is_edge_from (nid : Odot.node_id) (e : Odot.edge_stmt) : bool =
 (* Get the edges from a node ID *)
 let edges_from (nid : Odot.node_id) (sl : Odot.stmt list) : Odot.edge_stmt =
   let edges = List.map edge_statement (List.filter is_edge sl) in
-  List.find (is_edge_from nid) edges
+  try
+    List.find (is_edge_from nid) edges
+  with _ ->
+    failwith "Edge from node ID not found"
 
 (* Check whether an edge point is a node ID *)
 let is_node_id (p : Odot.edge_stmt_point) : bool =
@@ -109,7 +112,10 @@ let edge_point_node_id (p : Odot.edge_stmt_point) : Odot.node_id =
 
 (* Get the node with the supplied ID from a statement list *)
 let node_with_id (sl : Odot.stmt list) (nid : Odot.node_id) : Odot.stmt =
-  List.find (fun s -> statement_node_id s = nid) (List.filter is_node sl)
+  try
+    List.find (fun s -> statement_node_id s = nid) (List.filter is_node sl)
+  with _ ->
+    failwith "node ID not found"
 
 (* Get destination nodes from an edge *)
 let destinations (sl : Odot.stmt list) (e : Odot.edge_stmt) : Odot.stmt list  =
