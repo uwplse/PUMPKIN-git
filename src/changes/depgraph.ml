@@ -9,6 +9,18 @@ open Git
 type node = { id : string ; adj : node list ; checksum : string }
 type graph = { root : node ; size : int }
 
+(* --- Print a graph, for debugging --- *)
+
+let rec node_as_string (n : node) : string =
+  let adj = String.concat ",\n" (List.map (node_as_string) n.adj) in
+  Printf.sprintf "{id: %s, checksum: %s, adj: [%s]}" n.id adj n.checksum
+
+let graph_as_string (g : graph) : string =
+  Printf.sprintf "size: %d, root: %s" g.size (node_as_string g.root)
+
+let print_graph (g : graph) : unit =
+  Printf.printf "%s\n" (graph_as_string g)
+
 (* --- Generating and processing dot files --- *)
 
 (*
@@ -167,7 +179,9 @@ let process_dot (dot_filename : string) (root_id : string) : graph =
 (* Get the dependency graph for a definition and return the root node *)
 let dep_graph (filename : string) (id : string) : graph =
   generate_dot filename id;
-  process_dot "graph.dot" id
+  let g = process_dot "graph.dot" id in
+  print_graph g;
+  g
 
 let root g = g.root
 let size g = g.size
