@@ -99,12 +99,9 @@ let is_edge_from (nid : Odot.node_id) (e : Odot.edge_stmt) : bool =
      false (* TODO subgraph handling, which we need many places here *)
 
 (* Get the edges from a node ID *)
-let edges_from (nid : Odot.node_id) (sl : Odot.stmt list) : Odot.edge_stmt option =
+let edges_from sl (nid : Odot.node_id) : Odot.edge_stmt list =
   let edges = List.map edge_statement (List.filter is_edge sl) in
-  try
-    Some (List.find (is_edge_from nid) edges)
-  with _ ->
-    None
+  List.filter (is_edge_from nid) edges
 
 (* Check whether an edge point is a node ID *)
 let is_node_id (p : Odot.edge_stmt_point) : bool =
@@ -130,18 +127,18 @@ let node_with_id sl (nid : Odot.node_id) : Odot.stmt =
     failwith "node ID not found"
 
 (* Get destination nodes from an edge *)
-let destinations sl (e : Odot.edge_stmt option) : Odot.stmt list  =
-  match e with
-  | Some (_, dest_pts, _) ->
-     let dest_node_ids = List.map edge_point_node_id dest_pts in
-     List.map (node_with_id sl) dest_node_ids
-  | None ->
-     []
+let destinations sl (e : Odot.edge_stmt) : Odot.stmt list  =
+  let (_, dest_pts, _) = e in
+  let dest_node_ids = List.map edge_point_node_id dest_pts in
+  List.map (node_with_id sl) dest_node_ids
 
 (* Get the statements that are adjacent to a statement *)
 let adjacent_statements sl (s : Odot.stmt) : Odot.stmt list =
   if is_node s then
-    destinations sl (edges_from (statement_node_id s) sl)
+    List.flatten
+      (List.map
+         (destinations sl)
+         (edges_from sl (statement_node_id s)))
   else
     []
 
