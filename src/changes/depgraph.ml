@@ -4,6 +4,9 @@ open Git
 
 (*
  * Dependency graphs for Coq terms
+ *
+ * TODO need to make this more efficient
+ * TODO need to fetch fully-qualified IDs by supporting subgraphs
  *)
 
 type node = { id : string ; adj : node list ; checksum : string }
@@ -22,11 +25,6 @@ let print_graph (g : graph) : unit =
   Printf.printf "%s\n" (graph_as_string g)
 
 (* --- Generating and processing dot files --- *)
-
-(*
- * I should probably move this outside of here since there are a lot
- * of utilities we need
- *)
 
 (* Generate the dot file *)
 let generate_dot (filename : string) (id : string) : unit =
@@ -96,7 +94,7 @@ let is_edge_from (nid : Odot.node_id) (e : Odot.edge_stmt) : bool =
   | Edge_node_id id ->
      id = nid
   | _ ->
-     false (* TODO subgraph handling, which we need many places here *)
+     false
 
 (* Get the edges from a node ID *)
 let edges_from sl (nid : Odot.node_id) : Odot.edge_stmt list =
