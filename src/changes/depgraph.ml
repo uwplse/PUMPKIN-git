@@ -11,6 +11,11 @@ type graph = { root : node ; size : int }
 
 (* --- Generating and processing dot files --- *)
 
+(*
+ * I should probably move this outside of here since there are a lot
+ * of utilities we need
+ *)
+
 (* Generate the dot file *)
 let generate_dot (filename : string) (id : string) : unit =
   let dot_script = Printf.sprintf "%s%s" (git_root ()) "/src/dpdgraph.sh" in
@@ -40,13 +45,96 @@ let attr_value (aid : string) (s : Odot.stmt) : string =
   | _ ->
      failwith "attribute not found"
 
+(* Check if a statement is a node *)
+let is_node (s : Odot.stmt) : bool =
+  match s with
+  | Stmt_node (_, _) ->
+     true
+  | _ ->
+     false
+
+(* Check if a statement is an edge *)
+let is_edge (s : Odot.stmt) : bool =
+  match s with
+  | Stmt_edge _ ->
+     true
+  | _ ->
+     false
+
+(* Get the node id of a statement *)
+let statement_node_id (s : Odot.stmt) : Odot.node_id =
+  match s with
+  | Stmt_node (nid, _) ->
+     nid
+  | _ ->
+     failwith "not a node"
+
+(* Get the edge statement from an edge *)
+let edge_statement (s : Odot.stmt) : Odot.edge_stmt =
+  match s with
+  | Stmt_edge e ->
+     e
+  | _ ->
+     failwith "not an edge"
+
+(* Determine if an edge is from a particular node ID *)
+let is_edge_from (nid : Odot.node_id) (e : Odot.edge_stmt) : bool =
+  let (source, _, _) = e in
+  match source with
+  | Edge_node_id id ->
+     id = nid
+  | _ ->
+     false (* TODO subgraph handling, which we need many places here *)
+
+(* Get the edges from a node ID *)
+let edges_from (nid : Odot.node_id) (sl : Odot.stmt list) : Odot.edge_stmt =
+  let edges = List.map edge_statement (List.filter is_edge sl) in
+  List.find (is_edge_from nid) edges
+
+(* Check whether an edge point is a node ID *)
+let is_node_id (p : Odot.edge_stmt_point) : bool =
+  match p with
+  | Edge_node_id _ ->
+     true
+  | _ ->
+     false
+
+(* Get the node ID of an edge point *)
+let edge_point_node_id (p : Odot.edge_stmt_point) : Odot.node_id =
+  match p with
+  | Edge_node_id id ->
+     id
+  | _ ->
+     failwith "can't get node ID from a subgraph"
+
+(* Get the node with the supplied ID from a statement list *)
+let node_with_id (sl : Odot.stmt list) (nid : Odot.node_id) : Odot.stmt =
+  List.find (fun s -> statement_node_id s = nid) (List.filter is_node sl)
+
+(* Get destination nodes from an edge *)
+let destinations (sl : Odot.stmt list) (e : Odot.edge_stmt) : Odot.stmt list  =
+  let (_, dest_pts, _) = e in
+  let dest_node_ids = List.map edge_point_node_id dest_pts in
+  List.map (node_with_id sl) dest_node_ids
+
+(* Get the statements that are adjacent to a statement *)
+let adjacent_statements (sl : Odot.stmt list) (s : Odot.stmt) : Odot.stmt list =
+  if is_node s then
+    destinations sl (edges_from (statement_node_id s) sl)
+  else
+    []
+
+(* Process a statement *)
+let rec process_statement (sl : Odot.stmt list) (s : Odot.stmt) : node =
+  let id = attr_value "label" s in
+  let adj = List.map (process_statement sl) (adjacent_statements sl s) in
+  let checksum = id in (* TODO *)
+  { id ; adj ; checksum }
+
 (* Process a list of statements *)
 let process_statements (root_s : Odot.stmt) (sl : Odot.stmt list) : graph =
-  let id = attr_value "label" root_s in
-  let adj = [] in (* TODO *)
-  let checksum = id in (* TODO *)
-  let root = { id ; adj ; checksum } in
-  let size = 1 in (* TODO *)
+  let root = process_statement sl root_s in
+  let size = List.length (List.filter is_node sl) in
   { root ; size }
 
 (* Identify the root statement *)
