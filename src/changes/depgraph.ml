@@ -11,6 +11,7 @@ open Git
  * TODO need to exclude constructors and cases
  *)
 
+(* The size of a graph is a rough approximation of the number of nodes *)
 type node = { id : string ; adj : node list ; checksum : string }
 type graph = { root : node ; size : int }
 
