@@ -13,7 +13,7 @@ type graph = { root : node ; size : int }
 
 let rec node_as_string (n : node) : string =
   let adj = String.concat ",\n" (List.map (node_as_string) n.adj) in
-  Printf.sprintf "{id: %s, checksum: %s, adj: [%s]}" n.id adj n.checksum
+  Printf.sprintf "{id: %s, checksum: %s, adj: [%s]}" n.id n.checksum adj
 
 let graph_as_string (g : graph) : string =
   Printf.sprintf "size: %d, root: %s" g.size (node_as_string g.root)
