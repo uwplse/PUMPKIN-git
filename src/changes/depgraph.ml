@@ -87,12 +87,12 @@ let is_edge_from (nid : Odot.node_id) (e : Odot.edge_stmt) : bool =
      false (* TODO subgraph handling, which we need many places here *)
 
 (* Get the edges from a node ID *)
-let edges_from (nid : Odot.node_id) (sl : Odot.stmt list) : Odot.edge_stmt =
+let edges_from (nid : Odot.node_id) (sl : Odot.stmt list) : Odot.edge_stmt option =
   let edges = List.map edge_statement (List.filter is_edge sl) in
   try
-    List.find (is_edge_from nid) edges
+    Some (List.find (is_edge_from nid) edges)
   with _ ->
-    failwith "Edge from node ID not found"
+    None
 
 (* Check whether an edge point is a node ID *)
 let is_node_id (p : Odot.edge_stmt_point) : bool =
@@ -111,27 +111,30 @@ let edge_point_node_id (p : Odot.edge_stmt_point) : Odot.node_id =
      failwith "can't get node ID from a subgraph"
 
 (* Get the node with the supplied ID from a statement list *)
-let node_with_id (sl : Odot.stmt list) (nid : Odot.node_id) : Odot.stmt =
+let node_with_id sl (nid : Odot.node_id) : Odot.stmt =
   try
     List.find (fun s -> statement_node_id s = nid) (List.filter is_node sl)
   with _ ->
     failwith "node ID not found"
 
 (* Get destination nodes from an edge *)
-let destinations (sl : Odot.stmt list) (e : Odot.edge_stmt) : Odot.stmt list  =
-  let (_, dest_pts, _) = e in
-  let dest_node_ids = List.map edge_point_node_id dest_pts in
-  List.map (node_with_id sl) dest_node_ids
+let destinations sl (e : Odot.edge_stmt option) : Odot.stmt list  =
+  match e with
+  | Some (_, dest_pts, _) ->
+     let dest_node_ids = List.map edge_point_node_id dest_pts in
+     List.map (node_with_id sl) dest_node_ids
+  | None ->
+     []
 
 (* Get the statements that are adjacent to a statement *)
-let adjacent_statements (sl : Odot.stmt list) (s : Odot.stmt) : Odot.stmt list =
+let adjacent_statements sl (s : Odot.stmt) : Odot.stmt list =
   if is_node s then
     destinations sl (edges_from (statement_node_id s) sl)
   else
     []
 
 (* Process a statement *)
-let rec process_statement (sl : Odot.stmt list) (s : Odot.stmt) : node =
+let rec process_statement sl (s : Odot.stmt) : node =
   let id = attr_value "label" s in
   let adj = List.map (process_statement sl) (adjacent_statements sl s) in
   let checksum = id in (* TODO *)
