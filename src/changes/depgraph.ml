@@ -7,6 +7,8 @@ open Git
  *
  * TODO need to make this more efficient
  * TODO need to fetch fully-qualified IDs by supporting subgraphs
+ * TODO need to get checksums
+ * TODO need to exclude constructors and cases
  *)
 
 type node = { id : string ; adj : node list ; checksum : string }
