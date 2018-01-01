@@ -176,9 +176,7 @@ let process_dot (dot_filename : string) (root_id : string) : graph =
 (* Get the dependency graph for a definition and return the root node *)
 let dep_graph (filename : string) (id : string) : graph =
   generate_dot filename id;
-  let g = process_dot "graph.dot" id in
-  print_graph g;
-  g
+  process_dot "graph.dot" id
 
 let root g = g.root
 let size g = g.size
@@ -215,4 +213,7 @@ let checksums (g : graph) : (string * string) list =
     else
       let id_checksum = (node_id n, checksum n) in
       id_checksum :: (flat_map (get_checksums (add v n)) (adjacent n))
-  in get_checksums (create g) (root g)
+  in
+  let cs = get_checksums (create g) (root g) in
+  List.iter (fun (id, _) -> Printf.printf "%s\n" id) cs;
+  cs
