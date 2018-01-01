@@ -200,19 +200,19 @@ module IDHash =
 
 module IDHashtbl = Hashtbl.Make(IDHash)
 
-let add v n = IDHashtbl.add v n; v
+let add h n v = IDHashtbl.add h n v; h
 let create g = IDHashtbl.create (size g)
 
 (* --- Operations on Dependencies --- *)
 
 (* Get the checksums for all dependencies of the root node in a graph *)
 let checksums (g : graph) : (string * string) list =
-  let rec get_checksums v n =
-    if IDHashtbl.mem v n then
+  let rec get_checksums h n =
+    if IDHashtbl.mem h n then
       []
     else
-      let id_checksum = (node_id n, checksum n) in
-      id_checksum :: (flat_map (get_checksums (add v n)) (adjacent n))
+      let id_check = (node_id n, checksum n) in
+      id_check :: (flat_map (get_checksums (add h n ())) (adjacent n))
   in
   let cs = get_checksums (create g) (root g) in
   List.iter (fun (id, _) -> Printf.printf "%s\n" id) cs;

@@ -25,7 +25,7 @@ let taint (cs : (string * string) list) (g : graph) : string list =
     if IDHashtbl.mem v n then
       []
     else
-      let tainted = last_uniq (flat_map (taint_nodes (add v n)) (adjacent n)) in
+      let tainted = last_uniq (flat_map (taint_nodes (add v n ())) (adjacent n)) in
       if non_empty tainted || List.mem_assoc (node_id n) cs then
         node_id n :: tainted
       else

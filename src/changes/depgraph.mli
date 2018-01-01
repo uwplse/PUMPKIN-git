@@ -49,7 +49,7 @@ module IDHashtbl : Hashtbl.S with type key = node
 (*
  * Add with return
  *)
-val add : 'a IDHashtbl.t -> node -> 'a IDHashtbl.t
+val add : 'a IDHashtbl.t -> node -> 'a -> 'a IDHashtbl.t
 
 (*
  * Create
