@@ -66,10 +66,26 @@ let is_node (s : Odot.stmt) : bool =
   | _ ->
      false
 
+(* Check if a statement is a subgraph *)
+let is_node (s : Odot.stmt) : bool =
+  match s with
+  | Stmt_subgraph g ->
+     true
+  | _ ->
+     false
+
 (* Check if a statement is an edge *)
 let is_edge (s : Odot.stmt) : bool =
   match s with
   | Stmt_edge _ ->
+     true
+  | _ ->
+     false
+
+(* Check if a statement is an attribute *)
+let is_edge (s : Odot.stmt) : bool =
+  match s with
+  | Stmt_attr _ ->
      true
   | _ ->
      false
@@ -143,16 +159,41 @@ let adjacent_statements sl (s : Odot.stmt) : Odot.stmt list =
   else
     []
 
-(* Process a statement *)
-let rec process_statement sl (s : Odot.stmt) : node =
+(* Get the fully-qualified ID of a statement *)
+let get_fq_id fq_ids (s : Odot.stmt) : string =
   let id = attr_value "label" s in
+  try
+    List.assoc id fq_ids
+  with _ ->
+    id
+
+(* Get the fully qualified IDs *)
+let get_fq_ids subgraphs : (string * string) list =
+  List.map
+    (fun subgraph ->
+      match subgraph with
+      | Stmt_subgraph s ->
+         let sub_stmts = s.sub_stmt_list in
+         let attrs = List.filter is_attr sub_stmts in
+         (* TODO *)
+         
+         )
+      | _ ->
+         failwith "not a subgraph")
+    subgraphs
+
+(* Process a statement *)
+let rec process_statement sl fq_ids (s : Odot.stmt) : node =
+  let id = get_fq_id fq_ids s in
   let adj = List.map (process_statement sl) (adjacent_statements sl s) in
   let checksum = id in (* TODO *)
   { id ; adj ; checksum }
 
 (* Process a list of statements *)
 let process_statements (root_s : Odot.stmt) (sl : Odot.stmt list) : graph =
-  let root = process_statement sl root_s in
+  let subgraphs = List.filter is_subgraph sl in
+  let fq_ids = get_fq_ids subgraphs in
+  let root = process_statement sl fq_ids root_s in
   let size = List.length (List.filter is_node sl) in
   { root ; size }
 
