@@ -191,20 +191,25 @@ let get_fq_id fq_ids (s : Odot.stmt) : string =
     id
 
 (* Get the fully qualified IDs *)
-let get_fq_ids subgraphs : (string * string) list =
-  List.map
+let rec get_fq_ids prefix subgraphs : (string * string) list =
+  flat_map
     (fun subgraph ->
       match subgraph with
       | Odot.Stmt_subgraph s ->
          let sub_stmts = s.sub_stmt_list in
-         Printf.printf "num statements: %d\n" (List.length sub_stmts);
          let equals = List.filter is_equals sub_stmts in
-         Printf.printf "equals statements: %d\n" (List.length equals);
          let attrs = List.map attr_of_equals equals in
          let label = attr_value "label" attrs in
-         Printf.printf "label: %s\n\n" label;
-         (label, label)
-         (* TODO get nodes, then recurse to inner subgraph, etc *)
+         let qualified =
+           if String.length prefix = 0 then
+             label
+           else
+             String.concat "." [prefix; label]
+         in
+         let fqs = get_fq_ids qualified (List.filter is_subgraph sub_stmts) in
+         Printf.printf "qualified: %s\n\n" qualified;
+         (label, qualified) :: fqs
+         (* TODO get nodes, append recursion to inner subgraph, etc *)
       | _ ->
          failwith "not a subgraph")
     subgraphs
@@ -219,7 +224,7 @@ let rec process_statement sl fq_ids (s : Odot.stmt) : node =
 (* Process a list of statements *)
 let process_statements (root_s : Odot.stmt) (sl : Odot.stmt list) : graph =
   let subgraphs = List.filter is_subgraph sl in
-  let fq_ids = get_fq_ids subgraphs in
+  let fq_ids = get_fq_ids "" subgraphs in
   let root = process_statement sl fq_ids root_s in
   let size = List.length (List.filter is_node sl) in
   { root ; size }
