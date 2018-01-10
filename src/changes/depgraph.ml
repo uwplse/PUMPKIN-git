@@ -48,9 +48,6 @@ let has_attr (aid : string) (s : Odot.stmt) : bool =
 
 (* Get the value of the attribute with a given ID *)
 let attr_value (aid : string) (attrs : Odot.attr list) : string =
-  Printf.printf "aid: %s\n\n" aid;
-  Printf.printf "length: %d\n\n" (List.length attrs);
-  Printf.printf "%s\n\n" "----------------";
   try
     (match List.assoc (Odot.Simple_id aid) attrs with
      | Some (Odot.Simple_id id) -> id
@@ -92,21 +89,26 @@ let is_edge (s : Odot.stmt) : bool =
   | _ ->
      false
 
-(* Get the attribute list of an attribute statement *)
-let attr_list_of_statement (s : Odot.stmt) : Odot.attr list =
+(* Get an attribute from an equals statement  *)
+let attr_of_equals (s : Odot.stmt) : Odot.attr =
   match s with
-  | Stmt_attr attr ->
-     (match attr with
-      | Attr_graph l -> l
-      | Attr_node l -> l
-      | Attr_edge l -> l)
+  | Stmt_equals (idl, idr) ->
+     (idl, Some idr)
   | _ ->
-     []
+     failwith "not an equals statement"
 
 (* Check if a statement is an attribute *)
 let is_attr (s : Odot.stmt) : bool =
   match s with
   | Stmt_attr _ ->
+     true
+  | _ ->
+     false
+
+(* Check if a statement is an equality *)
+let is_equals (s : Odot.stmt) : bool =
+  match s with
+  | Stmt_equals _ ->
      true
   | _ ->
      false
@@ -195,9 +197,12 @@ let get_fq_ids subgraphs : (string * string) list =
       match subgraph with
       | Odot.Stmt_subgraph s ->
          let sub_stmts = s.sub_stmt_list in
-         let attrs = List.filter is_attr sub_stmts in
-         let attr_lists = List.map attr_list_of_statement attrs in
-         let label = attr_value "label" (List.flatten attr_lists) in
+         Printf.printf "num statements: %d\n" (List.length sub_stmts);
+         let equals = List.filter is_equals sub_stmts in
+         Printf.printf "equals statements: %d\n" (List.length equals);
+         let attrs = List.map attr_of_equals equals in
+         let label = attr_value "label" attrs in
+         Printf.printf "label: %s\n\n" label;
          (label, label)
          (* TODO get nodes, then recurse to inner subgraph, etc *)
       | _ ->
