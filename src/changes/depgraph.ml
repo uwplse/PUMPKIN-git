@@ -46,15 +46,19 @@ let has_attr (aid : string) (s : Odot.stmt) : bool =
   | _ ->
      false
 
+(* Get the value of the attribute with a given ID *)
+let attr_value (aid : string) (attrs : Odot.attr list) : string =
+  match List.assoc (Odot.Simple_id aid) attrs with
+  | Some (Odot.Simple_id id) -> id
+  | Some (Odot.Html_id id) -> id
+  | Some (Odot.Double_quoted_id id) -> id
+  | None -> ""
+
 (* Get the value of the attribute with a given ID for a statement *)
-let attr_value (aid : string) (s : Odot.stmt) : string =
+let attr_value_stmt (aid : string) (s : Odot.stmt) : string =
   match s with
   | Stmt_node (_, attrs) ->
-     (match List.assoc (Odot.Simple_id aid) attrs with
-      | Some (Odot.Simple_id id) -> id
-      | Some (Odot.Html_id id) -> id
-      | Some (Odot.Double_quoted_id id) -> id
-      | None -> "")
+     attr_value aid attrs
   | _ ->
      failwith "attribute not found"
 
@@ -67,7 +71,7 @@ let is_node (s : Odot.stmt) : bool =
      false
 
 (* Check if a statement is a subgraph *)
-let is_node (s : Odot.stmt) : bool =
+let is_subgraph (s : Odot.stmt) : bool =
   match s with
   | Stmt_subgraph g ->
      true
@@ -82,8 +86,19 @@ let is_edge (s : Odot.stmt) : bool =
   | _ ->
      false
 
+(* Get the attribute list of an attribute statement *)
+let attr_list_of_statement (s : Odot.stmt) : Odot.attr list =
+  match s with
+  | Stmt_attr attr ->
+     (match attr with
+      | Attr_graph l -> l
+      | Attr_node l -> l
+      | Attr_edge l -> l)
+  | _ ->
+     []
+
 (* Check if a statement is an attribute *)
-let is_edge (s : Odot.stmt) : bool =
+let is_attr (s : Odot.stmt) : bool =
   match s with
   | Stmt_attr _ ->
      true
@@ -161,7 +176,7 @@ let adjacent_statements sl (s : Odot.stmt) : Odot.stmt list =
 
 (* Get the fully-qualified ID of a statement *)
 let get_fq_id fq_ids (s : Odot.stmt) : string =
-  let id = attr_value "label" s in
+  let id = attr_value_stmt "label" s in
   try
     List.assoc id fq_ids
   with _ ->
@@ -172,12 +187,13 @@ let get_fq_ids subgraphs : (string * string) list =
   List.map
     (fun subgraph ->
       match subgraph with
-      | Stmt_subgraph s ->
+      | Odot.Stmt_subgraph s ->
          let sub_stmts = s.sub_stmt_list in
          let attrs = List.filter is_attr sub_stmts in
-         (* TODO *)
-         
-         )
+         let attr_lists = List.map attr_list_of_statement attrs in
+         let label = attr_value "label" (List.flatten attr_lists) in
+         (label, label)
+         (* TODO get nodes, then recurse to inner subgraph, etc *)
       | _ ->
          failwith "not a subgraph")
     subgraphs
@@ -185,7 +201,7 @@ let get_fq_ids subgraphs : (string * string) list =
 (* Process a statement *)
 let rec process_statement sl fq_ids (s : Odot.stmt) : node =
   let id = get_fq_id fq_ids s in
-  let adj = List.map (process_statement sl) (adjacent_statements sl s) in
+  let adj = List.map (process_statement sl fq_ids) (adjacent_statements sl s) in
   let checksum = id in (* TODO *)
   { id ; adj ; checksum }
 
@@ -202,7 +218,7 @@ let find_root_statement (root_id : string) (sl : Odot.stmt list) : Odot.stmt =
   List.find
     (fun s ->
       if has_attr "label" s then
-        attr_value "label" s = root_id
+        attr_value_stmt "label" s = root_id
       else
         false)
     sl
