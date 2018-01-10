@@ -48,11 +48,17 @@ let has_attr (aid : string) (s : Odot.stmt) : bool =
 
 (* Get the value of the attribute with a given ID *)
 let attr_value (aid : string) (attrs : Odot.attr list) : string =
-  match List.assoc (Odot.Simple_id aid) attrs with
-  | Some (Odot.Simple_id id) -> id
-  | Some (Odot.Html_id id) -> id
-  | Some (Odot.Double_quoted_id id) -> id
-  | None -> ""
+  Printf.printf "aid: %s\n\n" aid;
+  Printf.printf "length: %d\n\n" (List.length attrs);
+  Printf.printf "%s\n\n" "----------------";
+  try
+    (match List.assoc (Odot.Simple_id aid) attrs with
+     | Some (Odot.Simple_id id) -> id
+     | Some (Odot.Html_id id) -> id
+     | Some (Odot.Double_quoted_id id) -> id
+     | None -> "")
+  with _ ->
+    ""
 
 (* Get the value of the attribute with a given ID for a statement *)
 let attr_value_stmt (aid : string) (s : Odot.stmt) : string =
