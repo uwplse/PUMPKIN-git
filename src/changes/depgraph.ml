@@ -46,14 +46,21 @@ let has_attr (aid : string) (s : Odot.stmt) : bool =
   | _ ->
      false
 
+(* Get an identifier as a string *)
+let id_to_string (id : Odot.id) : string =
+  match id with
+  | Odot.Simple_id id -> id
+  | Odot.Html_id id -> id
+  | Odot.Double_quoted_id id -> id
+
 (* Get the value of the attribute with a given ID *)
 let attr_value (aid : string) (attrs : Odot.attr list) : string =
   try
     (match List.assoc (Odot.Simple_id aid) attrs with
-     | Some (Odot.Simple_id id) -> id
-     | Some (Odot.Html_id id) -> id
-     | Some (Odot.Double_quoted_id id) -> id
-     | None -> "")
+     | Some id ->
+        id_to_string id
+     | None ->
+        "")
   with _ ->
     ""
 
@@ -200,15 +207,23 @@ let rec get_fq_ids prefix subgraphs : (string * string) list =
          let equals = List.filter is_equals sub_stmts in
          let attrs = List.map attr_of_equals equals in
          let label = attr_value "label" attrs in
-         let qualified =
+         let qualify s =
            if String.length prefix = 0 then
-             label
+             s
            else
-             String.concat "." [prefix; label]
+             String.concat "." [prefix; s]
          in
-         let fqs = get_fq_ids qualified (List.filter is_subgraph sub_stmts) in
+         let qualified = qualify label in
+         let fqs =
+           List.map
+             (fun n ->
+               let id = id_to_string (statement_node_id n) in
+               qualify id)
+             (List.filter is_node sub_stmts)
+         in (* TODO use fqs *)
+         let fqs_rec = get_fq_ids qualified (List.filter is_subgraph sub_stmts) in
          Printf.printf "qualified: %s\n\n" qualified;
-         (label, qualified) :: fqs
+         (label, qualified) :: fqs_rec
          (* TODO get nodes, append recursion to inner subgraph, etc *)
       | _ ->
          failwith "not a subgraph")
