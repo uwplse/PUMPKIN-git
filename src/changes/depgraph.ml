@@ -223,8 +223,8 @@ let rec get_fq_ids prefix subgraphs : (string * string) list =
            List.map
              (fun n ->
                let (id, _) = statement_node_id n in
-               let label_n = id_to_string id in
-               (label_n, qualify qualified (unqualify qualified label_n)))
+               let label_n = unqualify qualified (id_to_string id) in
+               (label_n, qualify qualified label_n))
              (List.filter is_node sub_stmts)
          in
          List.append
