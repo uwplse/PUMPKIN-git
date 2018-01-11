@@ -217,14 +217,14 @@ let rec get_fq_ids prefix subgraphs : (string * string) list =
          let fqs =
            List.map
              (fun n ->
-               let id = id_to_string (statement_node_id n) in
-               qualify id)
+               let (id, _) = statement_node_id n in
+               let label_n = id_to_string id in
+               (label_n, qualify label_n))
              (List.filter is_node sub_stmts)
-         in (* TODO use fqs *)
-         let fqs_rec = get_fq_ids qualified (List.filter is_subgraph sub_stmts) in
-         Printf.printf "qualified: %s\n\n" qualified;
-         (label, qualified) :: fqs_rec
-         (* TODO get nodes, append recursion to inner subgraph, etc *)
+         in
+         List.append
+           fqs
+           (get_fq_ids qualified (List.filter is_subgraph sub_stmts))
       | _ ->
          failwith "not a subgraph")
     subgraphs
@@ -240,6 +240,7 @@ let rec process_statement sl fq_ids (s : Odot.stmt) : node =
 let process_statements (root_s : Odot.stmt) (sl : Odot.stmt list) : graph =
   let subgraphs = List.filter is_subgraph sl in
   let fq_ids = get_fq_ids "" subgraphs in
+  List.iter (fun (id, fq) -> Printf.printf "%s: %s\n" id fq) fq_ids;
   let root = process_statement sl fq_ids root_s in
   let size = List.length (List.filter is_node sl) in
   { root ; size }
