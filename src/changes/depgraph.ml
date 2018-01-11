@@ -6,7 +6,6 @@ open Git
  * Dependency graphs for Coq terms
  *
  * TODO need to make this more efficient
- * TODO need to fetch fully-qualified IDs by supporting subgraphs
  * TODO need to get checksums
  * TODO need to exclude constructors and cases
  *)
