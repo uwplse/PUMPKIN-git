@@ -247,7 +247,6 @@ let rec process_statement sl fq_ids (s : Odot.stmt) : node =
 let process_statements (root_s : Odot.stmt) (sl : Odot.stmt list) : graph =
   let subgraphs = List.filter is_subgraph sl in
   let fq_ids = get_fq_ids "" subgraphs in
-  List.iter (fun (id, fq) -> Printf.printf "%s: %s\n" id fq) fq_ids;
   let root = process_statement sl fq_ids root_s in
   let size = List.length (List.filter is_node sl) in
   { root ; size }
@@ -310,8 +309,4 @@ let checksums (g : graph) : (string * string) list =
     else
       let id_check = (node_id n, checksum n) in
       id_check :: (flat_map (get_checksums (add h n ())) (adjacent n))
-  in
-  let cs = get_checksums (create g) (root g) in
-  List.iter (fun (id, _) -> Printf.printf "%s\n" id) cs;
-  Printf.printf "%s\n\n" "----";
-  cs
+  in get_checksums (create g) (root g)
