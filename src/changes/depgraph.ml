@@ -197,6 +197,17 @@ let get_fq_id fq_ids (s : Odot.stmt) : string =
   with _ ->
     id
 
+(* Qualify a single ID with a prefix *)
+let qualify (prefix : string) (id : string) =
+  if String.length prefix = 0 then
+    id
+  else
+    String.concat "." [prefix; id]
+
+(* Trim a prefix off of an ID *)
+let unqualify (prefix : string) (id : string) =
+  String.sub id (String.length prefix) (String.length id)
+
 (* Get the fully qualified IDs *)
 let rec get_fq_ids prefix subgraphs : (string * string) list =
   flat_map
@@ -207,19 +218,13 @@ let rec get_fq_ids prefix subgraphs : (string * string) list =
          let equals = List.filter is_equals sub_stmts in
          let attrs = List.map attr_of_equals equals in
          let label = attr_value "label" attrs in
-         let qualify s =
-           if String.length prefix = 0 then
-             s
-           else
-             String.concat "." [prefix; s]
-         in
-         let qualified = qualify label in
+         let qualified = qualify prefix label in
          let fqs =
            List.map
              (fun n ->
                let (id, _) = statement_node_id n in
                let label_n = id_to_string id in
-               (label_n, qualify label_n))
+               (label_n, qualify qualified (unqualify qualified label_n)))
              (List.filter is_node sub_stmts)
          in
          List.append
