@@ -207,7 +207,7 @@ let qualify (prefix : string) (id : string) =
 (* Trim a prefix off of an ID *)
 let unqualify (prefix : string) (id : string) =
   let qualifier_length = String.length prefix in
-  String.sub id qualifier_length (qualifier_length - (String.length id))
+  String.sub id qualifier_length ((String.length id) - qualifier_length)
 
 (* Get the fully qualified IDs *)
 let rec get_fq_ids prefix subgraphs : (string * string) list =
