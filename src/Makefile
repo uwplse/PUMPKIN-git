@@ -8,7 +8,7 @@ SOURCES = \
   main.ml
 
 THREADS = yes
-PACKS = core str
+PACKS = core str ppx_let
 
 OCAMLMAKEFILE = OCamlMakefile
 include $(OCAMLMAKEFILE)

@@ -1,3 +1,9 @@
+(* Zero desire to use Jane Street's overriden lists *)
+let hd = List.hd
+let map = List.map
+let length = List.length
+
+open Core
 open Retrieve
 open Strutils
 open Ioutils
@@ -41,7 +47,7 @@ let lineof_template = "
 
 (* Name the patch output file. *)
 let output_filename filename : string =
-  let prefix = Core.Filename.chop_suffix filename ".v" in
+  let prefix = Filename.chop_suffix filename ".v" in
   prefix ^ "_patch.v"
 
 (* Get the line at which the definition of the given Coq identifier ends. *)
@@ -49,8 +55,8 @@ let line_of filename identifier text : int =
   let escaped = replace "'" "\'" identifier in
   let script = replace "[$]IDENTIFIER" escaped lineof_template in
   let command = Printf.sprintf "sed -n -E -e \"%s\" %s" script filename in
-  let get_end i = i + List.length text in
-  Unix.open_process_in command |> slurp |> List.hd |> int_of_string |> get_end
+  let get_end i = i + length text in
+  Unix.open_process_in command |> slurp |> hd |> int_of_string |> get_end
 
 (* Determine what mode to run PUMPKIN-git in.*)
 let get_mode mode =
@@ -101,37 +107,13 @@ let run mode rev hint patch_id cut cl id filename () =
   let def = retrieve_def filename rev id in
   let line = line_of filename id def in
   let config = configure_command mode rev hint patch_id cut id filename line in
-  let changed_deps = List.map (retrieve_def filename rev) cl in
+  let changed_deps = map (retrieve_def filename rev) cl in
   output_using config.outputter def changed_deps;
   process_using config.processor
 
-let interface =
-  let open Core.Command.Spec in
-  empty
-  +> flag "mode" (optional_with_default "interactive" string)
-      ~doc: "m run in one of these modes (default: interactive):\n
-             \tshow: print the old definition/proof and then exit\n
-             \tdefine: like show, but write to a temporary file\n
-             \tlazy: like define, but add a call to PUMPKIN\n
-             \tcall: like lazy, but execute the result\n
-             \tsafe: write patched file to a temporary file\n
-             \tinteractive: overwrite file with patched file\n
-             \tforce: like interactive, but skip the user prompt"
-  +> flag "rev" (optional_with_default "HEAD" string)
-      ~doc:"object git revision of interest (default: HEAD)"
-  +> flag "hint" no_arg
-      ~doc:" add the patch to the hint database"
-  +> flag "patch" (optional_with_default "patch" string)
-      ~doc:" name of the patch (default: patch)"
-  +> flag "cut" (optional string)
-      ~doc:"app lemma and arguments to cut by"
-  +> flag "changed" (listed string)
-      ~doc:"def additional definitions that have changed"
-  +> anon ("identifier" %: string)
-  +> anon ("filename" %: file)
-
-let command =
-  Core.Command.basic
+let () =
+  let open Command.Let_syntax in
+  Command.basic
     ~summary:"\
 Find a patch between the current version and a previous version of a
 proof or definition from the local git history.\
@@ -140,8 +122,29 @@ proof or definition from the local git history.\
 By default, an updated version of the specified file
 with a patch between versions is written to the file.\
 ")
-    interface
-    (fun mode -> run (get_mode mode))
+    [%map_open
+       let mode = flag "mode" (optional_with_default "interactive" string)
+                  ~doc: "m run in one of these modes (default: interactive):\n
+                         \tshow: print the old definition/proof and then exit\n
+                         \tdefine: like show, but write to a temporary file\n
+                         \tlazy: like define, but add a call to PUMPKIN\n
+                         \tcall: like lazy, but execute the result\n
+                         \tsafe: write patched file to a temporary file\n
+                         \tinteractive: overwrite file with patched file\n
+                         \tforce: like interactive, but skip the user prompt"
+       and rev = flag "rev" (optional_with_default "HEAD" string)
+                 ~doc:"object git revision of interest (default: HEAD)"
+       and hint = flag "hint" no_arg
+                  ~doc:" add the patch to the hint database"
+       and patch = flag "patch" (optional_with_default "patch" string)
+                   ~doc:" name of the patch (default: patch)"
+       and cut = flag "cut" (optional string)
+                 ~doc:"app lemma and arguments to cut by"
+       and changed = flag "changed" (listed string)
+                     ~doc:"def additional definitions that have changed"
+       and identifier = anon ("identifier" %: string)
+       and filename = anon ("filename" %: file)
+       in run (get_mode mode) rev hint patch cut changed identifier filename
+    ]
+  |> Command.run ~version:"8.8.0" 
 
-let () =
-  Core.Command.run ~version:"0.1" command
